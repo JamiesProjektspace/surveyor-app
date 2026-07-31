@@ -297,16 +297,16 @@ function App() {
               b = p.lng.toFixed(6)
             } else if (coordSystem === 'utm32n') {
               const c = toUTM32N(p.lat, p.lng)
-              a = c.easting.toFixed(2)
-              b = c.northing.toFixed(2)
+              a = c.easting.toFixed(4)
+              b = c.northing.toFixed(4)
             } else if (coordSystem === 'dktm3') {
               const c = toDKTM3(p.lat, p.lng)
-              a = c.easting.toFixed(2)
-              b = c.northing.toFixed(2)
+              a = c.easting.toFixed(4)
+              b = c.northing.toFixed(4)
             } else if (coordSystem === 's34s') {
               const c = toS34SApprox(p.lat, p.lng)
-              a = c.easting.toFixed(2)
-              b = c.northing.toFixed(2)
+              a = c.easting.toFixed(4)
+              b = c.northing.toFixed(4)
             }
             return (
               <tr key={i}>
