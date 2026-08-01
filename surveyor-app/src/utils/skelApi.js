@@ -17,18 +17,20 @@ async function postQuery(query) {
   return data
 }
 
-// Henter skelpunkter og matrikelskel fra Dataforsyningen (MAT/v2 GraphQL) for et givet kortudsnit (Leaflet bounds).
-// Returnerer { points, lines, limitReached }.
-export async function fetchSkelData(bounds) {
+// Byg en lukket bounding box-polygon (WKT) i UTM32N ud fra Leaflets kortgrænser
+function boundsToWKT(bounds) {
   const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
   const ne = toUTM32N(bounds.getNorth(), bounds.getEast())
+  return `POLYGON((${sw.easting} ${sw.northing}, ${ne.easting} ${sw.northing}, ${ne.easting} ${ne.northing}, ${sw.easting} ${ne.northing}, ${sw.easting} ${sw.northing}))`
+}
 
-  // Byg en lukket polygon (WKT) der repræsenterer kortudsnittets bounding box i UTM32N
-  const wkt = `POLYGON((${sw.easting} ${sw.northing}, ${ne.easting} ${sw.northing}, ${ne.easting} ${ne.northing}, ${sw.easting} ${ne.northing}, ${sw.easting} ${sw.northing}))`
-
+// Henter skelpunkter fra Dataforsyningen (MAT/v2 GraphQL) for et givet kortudsnit.
+// Returnerer { points, limitReached }.
+export async function fetchSkelpunkter(bounds) {
+  const wkt = boundsToWKT(bounds)
   const now = new Date().toISOString()
 
-  const skelpunktQuery = `
+  const query = `
     query {
       MAT_Skelpunkt(
         first: 1000
@@ -51,7 +53,36 @@ export async function fetchSkelData(bounds) {
     }
   `
 
-  const matrikelskelQuery = `
+  const data = await postQuery(query)
+  const limitReached = Boolean(data.data?.MAT_Skelpunkt?.pageInfo?.hasNextPage)
+
+  const nodes = data.data?.MAT_Skelpunkt?.nodes || []
+  const points = nodes.map((node) => {
+    // WKT-format for et punkt: "POINT (725123.45 6175678.90)"
+    const match = node.geometri.wkt.match(/POINT\s*\(([-\d.]+)\s+([-\d.]+)\)/)
+    const easting = parseFloat(match[1])
+    const northing = parseFloat(match[2])
+    const { lat, lng } = fromUTM32N(easting, northing)
+    return {
+      id: node.id_lokalId,
+      lat,
+      lng,
+      punktKlasse: node.punktKlasse,
+      status: node.status,
+      indlaegningstype: node.indlaegningstype,
+    }
+  })
+
+  return { points, limitReached }
+}
+
+// Henter matrikelskel (skellinjer) fra Dataforsyningen (MAT/v2 GraphQL) for et givet kortudsnit.
+// Returnerer { lines, limitReached }.
+export async function fetchMatrikelskel(bounds) {
+  const wkt = boundsToWKT(bounds)
+  const now = new Date().toISOString()
+
+  const query = `
     query {
       MAT_Matrikelskel(
         first: 1000
@@ -73,34 +104,11 @@ export async function fetchSkelData(bounds) {
     }
   `
 
-  const [skelpunktData, matrikelskelData] = await Promise.all([
-    postQuery(skelpunktQuery),
-    postQuery(matrikelskelQuery),
-  ])
+  const data = await postQuery(query)
+  const limitReached = Boolean(data.data?.MAT_Matrikelskel?.pageInfo?.hasNextPage)
 
-  const pointsExceeded = skelpunktData.data?.MAT_Skelpunkt?.pageInfo?.hasNextPage
-  const linesExceeded = matrikelskelData.data?.MAT_Matrikelskel?.pageInfo?.hasNextPage
-  const limitReached = Boolean(pointsExceeded || linesExceeded)
-
-  const pointNodes = skelpunktData.data?.MAT_Skelpunkt?.nodes || []
-  const points = pointNodes.map((node) => {
-    // WKT-format for et punkt: "POINT (725123.45 6175678.90)"
-    const match = node.geometri.wkt.match(/POINT\s*\(([-\d.]+)\s+([-\d.]+)\)/)
-    const easting = parseFloat(match[1])
-    const northing = parseFloat(match[2])
-    const { lat, lng } = fromUTM32N(easting, northing)
-    return {
-      id: node.id_lokalId,
-      lat,
-      lng,
-      punktKlasse: node.punktKlasse,
-      status: node.status,
-      indlaegningstype: node.indlaegningstype,
-    }
-  })
-
-  const lineNodes = matrikelskelData.data?.MAT_Matrikelskel?.nodes || []
-  const lines = lineNodes.map((node) => {
+  const nodes = data.data?.MAT_Matrikelskel?.nodes || []
+  const lines = nodes.map((node) => {
     // WKT-format for en linje: "LINESTRING (e1 n1, e2 n2, ...)"
     const inner = node.geometri.wkt.match(/LINESTRING\s*\((.+)\)/)[1]
     const positions = inner.split(',').map((pair) => {
@@ -111,5 +119,5 @@ export async function fetchSkelData(bounds) {
     return { id: node.id_lokalId, positions, skeltype: node.skeltype, status: node.status }
   })
 
-  return { points, lines, limitReached }
+  return { lines, limitReached }
 }

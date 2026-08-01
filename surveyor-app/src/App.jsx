@@ -3,10 +3,10 @@ import './App.css'
 import MapView from './components/MapView'
 import CoordinateSystemSelector from './components/CoordinateSystemSelector'
 import ManualPointInput from './components/ManualPointInput'
-import SkelpunktControls from './components/SkelpunktControls'
+import DataFetchControl from './components/DataFetchControl'
 import PointsTable from './components/PointsTable'
 import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput } from './utils/coordinates'
-import { fetchSkelData } from './utils/skelApi'
+import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
 
 function App() {
   const [points, setPoints] = useState([])
@@ -15,11 +15,16 @@ function App() {
   const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
+
   const [skelPoints, setSkelPoints] = useState([])
+  const [skelPointsLoading, setSkelPointsLoading] = useState(false)
+  const [skelPointsError, setSkelPointsError] = useState(null)
+  const [skelPointsLimitReached, setSkelPointsLimitReached] = useState(false)
+
   const [skelLines, setSkelLines] = useState([])
-  const [skelLoading, setSkelLoading] = useState(false)
-  const [skelError, setSkelError] = useState(null)
-  const [skelLimitReached, setSkelLimitReached] = useState(false)
+  const [skelLinesLoading, setSkelLinesLoading] = useState(false)
+  const [skelLinesError, setSkelLinesError] = useState(null)
+  const [skelLinesLimitReached, setSkelLinesLimitReached] = useState(false)
 
   const addPoint = (latlng) => {
     setPoints([...points, { lat: latlng.lat, lng: latlng.lng }])
@@ -51,23 +56,39 @@ function App() {
     setPoints((prev) => prev.slice(0, -1))
   }
 
-  // Henter skelpunkter og matrikelskel fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
-  const fetchSkelpunkter = async () => {
+  // Henter skelpunkter fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
+  const handleFetchSkelpunkter = async () => {
     if (!mapInstance) return
-    setSkelLoading(true)
-    setSkelError(null)
-    setSkelPoints([]) // Ryd gamle skelpunkter med det samme, så de ikke bliver stående mens vi henter nye
-    setSkelLines([])
-    setSkelLimitReached(false)
+    setSkelPointsLoading(true)
+    setSkelPointsError(null)
+    setSkelPoints([])
+    setSkelPointsLimitReached(false)
     try {
-      const { points: fetchedPoints, lines: fetchedLines, limitReached } = await fetchSkelData(mapInstance.getBounds())
+      const { points: fetchedPoints, limitReached } = await fetchSkelpunkterData(mapInstance.getBounds())
       setSkelPoints(fetchedPoints)
-      setSkelLines(fetchedLines)
-      setSkelLimitReached(limitReached)
+      setSkelPointsLimitReached(limitReached)
     } catch (err) {
-      setSkelError(err.message)
+      setSkelPointsError(err.message)
     } finally {
-      setSkelLoading(false)
+      setSkelPointsLoading(false)
+    }
+  }
+
+  // Henter matrikelskel (skellinjer) fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
+  const handleFetchMatrikelskel = async () => {
+    if (!mapInstance) return
+    setSkelLinesLoading(true)
+    setSkelLinesError(null)
+    setSkelLines([])
+    setSkelLinesLimitReached(false)
+    try {
+      const { lines: fetchedLines, limitReached } = await fetchMatrikelskel(mapInstance.getBounds())
+      setSkelLines(fetchedLines)
+      setSkelLinesLimitReached(limitReached)
+    } catch (err) {
+      setSkelLinesError(err.message)
+    } finally {
+      setSkelLinesLoading(false)
     }
   }
 
@@ -91,13 +112,26 @@ function App() {
         onAdd={addManualPoint}
       />
 
-      <SkelpunktControls
-        onFetch={fetchSkelpunkter}
-        loading={skelLoading}
-        pointCount={skelPoints.length}
-        lineCount={skelLines.length}
-        limitReached={skelLimitReached}
-        error={skelError}
+      <DataFetchControl
+        label="Hent skelpunkter for kortudsnit"
+        loadingLabel="Henter skelpunkter…"
+        onFetch={handleFetchSkelpunkter}
+        loading={skelPointsLoading}
+        count={skelPoints.length}
+        countLabel="skelpunkter"
+        limitReached={skelPointsLimitReached}
+        error={skelPointsError}
+      />
+
+      <DataFetchControl
+        label="Hent skellinjer for kortudsnit"
+        loadingLabel="Henter skellinjer…"
+        onFetch={handleFetchMatrikelskel}
+        loading={skelLinesLoading}
+        count={skelLines.length}
+        countLabel="skellinjer"
+        limitReached={skelLinesLimitReached}
+        error={skelLinesError}
       />
 
       <MapView
