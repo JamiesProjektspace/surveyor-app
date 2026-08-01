@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Polygon, LayersControl, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polygon, LayersControl, Tooltip, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import proj4 from 'proj4'
 import 'leaflet/dist/leaflet.css'
@@ -124,12 +124,25 @@ function FlyToPoint({ target }) {
   return null
 }
 
+// Captures the Leaflet map instance so we can read its current bounds from outside MapContainer
+function MapRefSetter({ onMapReady }) {
+  const map = useMap()
+  useEffect(() => {
+    onMapReady(map)
+  }, [map, onMapReady])
+  return null
+}
+
 function App() {
   const [points, setPoints] = useState([])
   const [coordSystem, setCoordSystem] = useState('wgs84') // 'wgs84' or 'utm32n'
   const [inputA, setInputA] = useState('')
   const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
+  const [mapInstance, setMapInstance] = useState(null)
+  const [skelPoints, setSkelPoints] = useState([])
+  const [skelLoading, setSkelLoading] = useState(false)
+  const [skelError, setSkelError] = useState(null)
 
   const addPoint = (latlng) => {
     setPoints([...points, { lat: latlng.lat, lng: latlng.lng }])
@@ -168,6 +181,70 @@ function App() {
 
   const removeLastPoint = () => {
     setPoints((prev) => prev.slice(0, -1))
+  }
+
+  // Henter skelpunkter fra Dataforsyningen (via lokal proxy) for det kortudsnit, brugeren ser lige nu
+  const fetchSkelpunkter = async () => {
+    if (!mapInstance) return
+    setSkelLoading(true)
+    setSkelError(null)
+    try {
+      const bounds = mapInstance.getBounds()
+      const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
+      const ne = toUTM32N(bounds.getNorth(), bounds.getEast())
+
+      // Byg en lukket polygon (WKT) der repræsenterer kortudsnittets bounding box i UTM32N
+      const wkt = `POLYGON((${sw.easting} ${sw.northing}, ${ne.easting} ${sw.northing}, ${ne.easting} ${ne.northing}, ${sw.easting} ${ne.northing}, ${sw.easting} ${sw.northing}))`
+
+      const now = new Date().toISOString()
+
+      const query = `
+        query {
+          MAT_Skelpunkt(
+            first: 1000
+            virkningstid: "${now}"
+            registreringstid: "${now}"
+            where: {
+              status: { eq: "Gældende" }
+              geometri: { within: { wkt: "${wkt}", crs: 25832 } }
+            }
+          ) {
+            nodes {
+              id_lokalId
+              geometri { wkt }
+            }
+          }
+        }
+      `
+
+      const res = await fetch('/api/skelpunkter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      })
+      if (!res.ok) {
+        throw new Error(`Serverfejl (${res.status}) — tjek din API-nøgle i .env`)
+      }
+      const data = await res.json()
+      if (data.errors) {
+        throw new Error(data.errors.map((e) => e.message).join('; '))
+      }
+
+      const nodes = data.data?.MAT_Skelpunkt?.nodes || []
+      const fetched = nodes.map((node) => {
+        // WKT-format for et punkt: "POINT (725123.45 6175678.90)"
+        const match = node.geometri.wkt.match(/POINT\s*\(([-\d.]+)\s+([-\d.]+)\)/)
+        const easting = parseFloat(match[1])
+        const northing = parseFloat(match[2])
+        const { lat, lng } = fromUTM32N(easting, northing)
+        return { id: node.id_lokalId, lat, lng }
+      })
+      setSkelPoints(fetched)
+    } catch (err) {
+      setSkelError(err.message)
+    } finally {
+      setSkelLoading(false)
+    }
   }
 
   // Convert points to the [lat, lng] pairs Leaflet expects
@@ -231,6 +308,16 @@ function App() {
         <button onClick={addManualPoint}>Tilføj punkt</button>
       </div>
 
+      <div className="skelpunkt-controls">
+        <button onClick={fetchSkelpunkter} disabled={skelLoading}>
+          {skelLoading ? 'Henter skelpunkter…' : 'Hent skelpunkter for kortudsnit'}
+        </button>
+        {skelPoints.length > 0 && !skelLoading && (
+          <span className="skel-count">{skelPoints.length} skelpunkter fundet</span>
+        )}
+        {skelError && <p className="warning">⚠️ {skelError}</p>}
+      </div>
+
       <div className="map-wrapper">
         <MapContainer center={[55.6761, 12.5683]} zoom={15} style={{ height: '500px', width: '100%' }}>
           <LayersControl position="topright">
@@ -255,6 +342,21 @@ function App() {
           </LayersControl>
           <ClickHandler onMapClick={addPoint} onReset={removeLastPoint} />
           <FlyToPoint target={flyToTarget} />
+          <MapRefSetter onMapReady={setMapInstance} />
+          {skelPoints.map((sp) => (
+            <CircleMarker
+              key={sp.id}
+              center={[sp.lat, sp.lng]}
+              radius={5}
+              pathOptions={{ color: '#d62728', fillColor: '#d62728', fillOpacity: 0.8 }}
+            >
+              <Popup>
+                <button onClick={() => addPoint({ lat: sp.lat, lng: sp.lng })}>
+                  Tilføj som målepunkt
+                </button>
+              </Popup>
+            </CircleMarker>
+          ))}
           {points.map((p, i) => (
             <Marker
               key={i}
