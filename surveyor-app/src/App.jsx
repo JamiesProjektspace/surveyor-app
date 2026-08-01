@@ -188,6 +188,7 @@ function App() {
     if (!mapInstance) return
     setSkelLoading(true)
     setSkelError(null)
+    setSkelPoints([]) // Ryd gamle skelpunkter med det samme, så de ikke bliver stående mens vi henter nye
     try {
       const bounds = mapInstance.getBounds()
       const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
@@ -211,6 +212,9 @@ function App() {
           ) {
             nodes {
               id_lokalId
+              punktKlasse
+              status
+              indlaegningstype
               geometri { wkt }
             }
           }
@@ -237,7 +241,14 @@ function App() {
         const easting = parseFloat(match[1])
         const northing = parseFloat(match[2])
         const { lat, lng } = fromUTM32N(easting, northing)
-        return { id: node.id_lokalId, lat, lng }
+        return {
+          id: node.id_lokalId,
+          lat,
+          lng,
+          punktKlasse: node.punktKlasse,
+          status: node.status,
+          indlaegningstype: node.indlaegningstype,
+        }
       })
       setSkelPoints(fetched)
     } catch (err) {
@@ -350,6 +361,13 @@ function App() {
               radius={5}
               pathOptions={{ color: '#d62728', fillColor: '#d62728', fillOpacity: 0.8 }}
             >
+              <Tooltip direction="top" offset={[0, -6]}>
+                <div>
+                  <strong>Punktklasse:</strong> {sp.punktKlasse || '–'}<br />
+                  <strong>Status:</strong> {sp.status || '–'}<br />
+                  <strong>Indlægningstype:</strong> {sp.indlaegningstype || '–'}
+                </div>
+              </Tooltip>
               <Popup>
                 <button onClick={() => addPoint({ lat: sp.lat, lng: sp.lng })}>
                   Tilføj som målepunkt
