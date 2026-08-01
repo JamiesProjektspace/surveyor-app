@@ -34,10 +34,11 @@ export default function MapView({
               attribution='&copy; OpenStreetMap contributors'
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellit">
+          <LayersControl.BaseLayer name="Ortofoto">
             <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution='Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics'
+              url="/api/ortofoto?z={z}&x={x}&y={y}"
+              attribution='&copy; SDFI / GeoDanmark'
+              maxZoom={21}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="Terræn">
