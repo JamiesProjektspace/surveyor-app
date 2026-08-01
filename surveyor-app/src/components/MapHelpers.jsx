@@ -14,12 +14,12 @@ export function ClickHandler({ onMapClick, onReset }) {
   return null
 }
 
-// Panorerer/zoomer kortet til et givet lat/lng, når det ændrer sig (bruges ved manuel indtastning)
+// Panorerer/zoomer kortet til et givet lat/lng, når det ændrer sig (bruges ved manuel indtastning og adressesøgning)
 export function FlyToPoint({ target }) {
   const map = useMap()
   useEffect(() => {
     if (target) {
-      map.flyTo([target.lat, target.lng], map.getZoom())
+      map.flyTo([target.lat, target.lng], target.zoom ?? map.getZoom())
     }
   }, [target, map])
   return null

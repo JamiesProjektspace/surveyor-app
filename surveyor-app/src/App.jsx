@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import MapView from './components/MapView'
+import AddressSearch from './components/AddressSearch'
 import CoordinateSystemSelector from './components/CoordinateSystemSelector'
 import ManualPointInput from './components/ManualPointInput'
 import DataFetchControl from './components/DataFetchControl'
@@ -100,6 +101,8 @@ function App() {
     <div className="app">
       <h1>Landmålerberegner</h1>
       <p>Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Højreklik for at fjerne det sidste punkt.</p>
+
+      <AddressSearch onLocationFound={setFlyToTarget} />
 
       <CoordinateSystemSelector coordSystem={coordSystem} onChange={setCoordSystem} />
 
