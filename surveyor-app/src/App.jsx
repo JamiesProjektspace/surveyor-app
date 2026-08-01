@@ -1,141 +1,16 @@
-import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Polygon, Polyline, LayersControl, Tooltip, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet'
-import L from 'leaflet'
-import proj4 from 'proj4'
-import 'leaflet/dist/leaflet.css'
+import { useState } from 'react'
 import './App.css'
-
-// ETRS89 / UTM zone 32N — standard projected coordinate system for Denmark
-proj4.defs('EPSG:25832', '+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs')
-
-// ETRS89 / DKTM3 — Danish national engineering/construction grid, zone 3 (Zealand & Lolland)
-proj4.defs('EPSG:4095', '+proj=tmerc +lat_0=0 +lon_0=11.75 +k=0.99998 +x_0=600000 +y_0=-5000000 +ellps=GRS80 +units=m +no_defs')
-
-// System 34 Sjælland (S34S) — APPROXIMATE reconstruction only.
-// The official conversion uses a Danish grid-shift correction file (SDFI) that
-// isn't supported by this browser library. This uses a generic historical datum
-// shift instead, which can be off by several meters — NOT suitable for legal/cadastral use.
-proj4.defs('S34S_APPROX', '+proj=tmerc +lat_0=0 +lon_0=10.37 +k=1 +x_0=-210327 +y_0=-6034310 +ellps=intl +towgs84=-89.5,-93.8,-123.1,0,0,0,0 +units=m +no_defs')
-
-// Convert a WGS84 lat/lng point to UTM32N easting/northing
-function toUTM32N(lat, lng) {
-  const [easting, northing] = proj4('EPSG:4326', 'EPSG:25832', [lng, lat])
-  return { easting, northing }
-}
-
-// Convert a WGS84 lat/lng point to DKTM3 easting/northing
-function toDKTM3(lat, lng) {
-  const [easting, northing] = proj4('EPSG:4326', 'EPSG:4095', [lng, lat])
-  return { easting, northing }
-}
-
-// Convert a WGS84 lat/lng point to S34S easting/northing (approximate)
-function toS34SApprox(lat, lng) {
-  const [easting, northing] = proj4('EPSG:4326', 'S34S_APPROX', [lng, lat])
-  return { easting, northing }
-}
-
-// Inverse conversions: projected easting/northing back to WGS84 lat/lng
-function fromUTM32N(easting, northing) {
-  const [lng, lat] = proj4('EPSG:25832', 'EPSG:4326', [easting, northing])
-  return { lat, lng }
-}
-
-function fromDKTM3(easting, northing) {
-  const [lng, lat] = proj4('EPSG:4095', 'EPSG:4326', [easting, northing])
-  return { lat, lng }
-}
-
-function fromS34SApprox(easting, northing) {
-  const [lng, lat] = proj4('S34S_APPROX', 'EPSG:4326', [easting, northing])
-  return { lat, lng }
-}
-
-// Fix for default marker icons not showing in Vite/bundlers
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
-
-const EARTH_RADIUS = 6371000 // meters
-
-// Convert lat/lng points to local flat X,Y meters relative to the first point
-function toLocalMeters(points) {
-  if (points.length === 0) return []
-  const originLat = (points[0].lat * Math.PI) / 180
-
-  return points.map((p) => {
-    const dLat = ((p.lat - points[0].lat) * Math.PI) / 180
-    const dLng = ((p.lng - points[0].lng) * Math.PI) / 180
-    const x = dLng * Math.cos(originLat) * EARTH_RADIUS
-    const y = dLat * EARTH_RADIUS
-    return { x, y }
-  })
-}
-
-// Shoelace formula for polygon area (in square meters)
-function calculateArea(localPoints) {
-  if (localPoints.length < 3) return 0
-  let sum = 0
-  for (let i = 0; i < localPoints.length; i++) {
-    const j = (i + 1) % localPoints.length
-    sum += localPoints[i].x * localPoints[j].y
-    sum -= localPoints[j].x * localPoints[i].y
-  }
-  return Math.abs(sum / 2)
-}
-
-// Perimeter: sum of distances between consecutive points (closing the loop)
-function calculatePerimeter(localPoints) {
-  if (localPoints.length < 2) return 0
-  let total = 0
-  for (let i = 0; i < localPoints.length; i++) {
-    const j = (i + 1) % localPoints.length
-    const dx = localPoints[j].x - localPoints[i].x
-    const dy = localPoints[j].y - localPoints[i].y
-    total += Math.sqrt(dx * dx + dy * dy)
-  }
-  return total
-}
-
-// This component listens for map clicks and reports them up to App
-function ClickHandler({ onMapClick, onReset }) {
-  useMapEvents({
-    click(e) {
-      onMapClick(e.latlng)
-    },
-    contextmenu(e) {
-      onReset()
-    },
-  })
-  return null
-}
-
-// Pans/zooms the map to a given lat/lng whenever it changes (used for manually entered points)
-function FlyToPoint({ target }) {
-  const map = useMap()
-  useEffect(() => {
-    if (target) {
-      map.flyTo([target.lat, target.lng], map.getZoom())
-    }
-  }, [target, map])
-  return null
-}
-
-// Captures the Leaflet map instance so we can read its current bounds from outside MapContainer
-function MapRefSetter({ onMapReady }) {
-  const map = useMap()
-  useEffect(() => {
-    onMapReady(map)
-  }, [map, onMapReady])
-  return null
-}
+import MapView from './components/MapView'
+import CoordinateSystemSelector from './components/CoordinateSystemSelector'
+import ManualPointInput from './components/ManualPointInput'
+import SkelpunktControls from './components/SkelpunktControls'
+import PointsTable from './components/PointsTable'
+import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput } from './utils/coordinates'
+import { fetchSkelData } from './utils/skelApi'
 
 function App() {
   const [points, setPoints] = useState([])
-  const [coordSystem, setCoordSystem] = useState('wgs84') // 'wgs84' or 'utm32n'
+  const [coordSystem, setCoordSystem] = useState('dktm3') // Standard er DKTM3
   const [inputA, setInputA] = useState('')
   const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
@@ -155,17 +30,8 @@ function App() {
     const b = parseFloat(inputB)
     if (isNaN(a) || isNaN(b)) return
 
-    let newPoint
-    if (coordSystem === 'wgs84') {
-      if (a < -90 || a > 90 || b < -180 || b > 180) return
-      newPoint = { lat: a, lng: b }
-    } else if (coordSystem === 'utm32n') {
-      newPoint = fromUTM32N(a, b)
-    } else if (coordSystem === 'dktm3') {
-      newPoint = fromDKTM3(a, b)
-    } else if (coordSystem === 's34s') {
-      newPoint = fromS34SApprox(a, b)
-    }
+    const newPoint = fromManualInput(a, b, coordSystem)
+    if (!newPoint) return
 
     setPoints([...points, newPoint])
     setFlyToTarget(newPoint)
@@ -185,7 +51,7 @@ function App() {
     setPoints((prev) => prev.slice(0, -1))
   }
 
-  // Henter skelpunkter fra Dataforsyningen (via lokal proxy) for det kortudsnit, brugeren ser lige nu
+  // Henter skelpunkter og matrikelskel fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
   const fetchSkelpunkter = async () => {
     if (!mapInstance) return
     setSkelLoading(true)
@@ -194,118 +60,10 @@ function App() {
     setSkelLines([])
     setSkelLimitReached(false)
     try {
-      const bounds = mapInstance.getBounds()
-      const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
-      const ne = toUTM32N(bounds.getNorth(), bounds.getEast())
-
-      // Byg en lukket polygon (WKT) der repræsenterer kortudsnittets bounding box i UTM32N
-      const wkt = `POLYGON((${sw.easting} ${sw.northing}, ${ne.easting} ${sw.northing}, ${ne.easting} ${ne.northing}, ${sw.easting} ${ne.northing}, ${sw.easting} ${sw.northing}))`
-
-      const now = new Date().toISOString()
-
-      const skelpunktQuery = `
-        query {
-          MAT_Skelpunkt(
-            first: 1000
-            virkningstid: "${now}"
-            registreringstid: "${now}"
-            where: {
-              status: { eq: "Gældende" }
-              geometri: { within: { wkt: "${wkt}", crs: 25832 } }
-            }
-          ) {
-            nodes {
-              id_lokalId
-              punktKlasse
-              status
-              indlaegningstype
-              geometri { wkt }
-            }
-            pageInfo { hasNextPage }
-          }
-        }
-      `
-
-      const matrikelskelQuery = `
-        query {
-          MAT_Matrikelskel(
-            first: 1000
-            virkningstid: "${now}"
-            registreringstid: "${now}"
-            where: {
-              status: { eq: "Gældende" }
-              geometri: { intersects: { wkt: "${wkt}", crs: 25832 } }
-            }
-          ) {
-            nodes {
-              id_lokalId
-              skeltype
-              status
-              geometri { wkt }
-            }
-            pageInfo { hasNextPage }
-          }
-        }
-      `
-
-      const postQuery = async (query) => {
-        const res = await fetch('/api/skelpunkter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
-        })
-        const data = await res.json().catch(() => null)
-        if (!res.ok) {
-          const detail = data?.errors?.map((e) => e.message).join('; ') || `HTTP ${res.status}`
-          throw new Error(detail)
-        }
-        if (data.errors) {
-          throw new Error(data.errors.map((e) => e.message).join('; '))
-        }
-        return data
-      }
-
-      const [skelpunktData, matrikelskelData] = await Promise.all([
-        postQuery(skelpunktQuery),
-        postQuery(matrikelskelQuery),
-      ])
-
-      const pointsExceeded = skelpunktData.data?.MAT_Skelpunkt?.pageInfo?.hasNextPage
-      const linesExceeded = matrikelskelData.data?.MAT_Matrikelskel?.pageInfo?.hasNextPage
-      if (pointsExceeded || linesExceeded) {
-        setSkelLimitReached(true)
-      }
-
-      const pointNodes = skelpunktData.data?.MAT_Skelpunkt?.nodes || []
-      const fetchedPoints = pointNodes.map((node) => {
-        // WKT-format for et punkt: "POINT (725123.45 6175678.90)"
-        const match = node.geometri.wkt.match(/POINT\s*\(([-\d.]+)\s+([-\d.]+)\)/)
-        const easting = parseFloat(match[1])
-        const northing = parseFloat(match[2])
-        const { lat, lng } = fromUTM32N(easting, northing)
-        return {
-          id: node.id_lokalId,
-          lat,
-          lng,
-          punktKlasse: node.punktKlasse,
-          status: node.status,
-          indlaegningstype: node.indlaegningstype,
-        }
-      })
+      const { points: fetchedPoints, lines: fetchedLines, limitReached } = await fetchSkelData(mapInstance.getBounds())
       setSkelPoints(fetchedPoints)
-
-      const lineNodes = matrikelskelData.data?.MAT_Matrikelskel?.nodes || []
-      const fetchedLines = lineNodes.map((node) => {
-        // WKT-format for en linje: "LINESTRING (e1 n1, e2 n2, ...)"
-        const inner = node.geometri.wkt.match(/LINESTRING\s*\((.+)\)/)[1]
-        const positions = inner.split(',').map((pair) => {
-          const [easting, northing] = pair.trim().split(/\s+/).map(Number)
-          const { lat, lng } = fromUTM32N(easting, northing)
-          return [lat, lng]
-        })
-        return { id: node.id_lokalId, positions, skeltype: node.skeltype, status: node.status }
-      })
       setSkelLines(fetchedLines)
+      setSkelLimitReached(limitReached)
     } catch (err) {
       setSkelError(err.message)
     } finally {
@@ -313,159 +71,46 @@ function App() {
     }
   }
 
-  // Convert points to the [lat, lng] pairs Leaflet expects
-  const polygonPositions = points.map((p) => [p.lat, p.lng])
-
   const localPoints = toLocalMeters(points)
   const area = calculateArea(localPoints)
   const perimeter = points.length > 2 ? calculatePerimeter(localPoints) : 0
-
-  // Labels og eksempel-placeholders for det manuelle inputfelt, afhængigt af valgt koordinatsystem
-  const manualInputLabels = {
-    wgs84: { labelA: 'Breddegrad', labelB: 'Længdegrad', placeholderA: 'f.eks. 55.6761', placeholderB: 'f.eks. 12.5683' },
-    utm32n: { labelA: 'Øst (m)', labelB: 'Nord (m)', placeholderA: 'f.eks. 725000', placeholderB: 'f.eks. 6175000' },
-    dktm3: { labelA: 'Øst (m)', labelB: 'Nord (m)', placeholderA: 'f.eks. 725000', placeholderB: 'f.eks. 6175000' },
-    s34s: { labelA: 'Øst (m)', labelB: 'Nord (m)', placeholderA: 'f.eks. 120000', placeholderB: 'f.eks. 60000' },
-  }[coordSystem]
 
   return (
     <div className="app">
       <h1>Landmålerberegner</h1>
       <p>Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Højreklik for at fjerne det sidste punkt.</p>
 
-      <div className="coord-toggle">
-        <label>
-          Koordinatsystem:{' '}
-          <select value={coordSystem} onChange={(e) => setCoordSystem(e.target.value)}>
-            <option value="wgs84">WGS84 (Bredde-/Længdegrad)</option>
-            <option value="utm32n">UTM Zone 32N (ETRS89)</option>
-            <option value="dktm3">DKTM3 (ETRS89)</option>
-            <option value="s34s">System 34 Sjælland (omtrentlig)</option>
-          </select>
-        </label>
-        {coordSystem === 's34s' && (
-          <p className="warning">
-            ⚠️ Kun omtrentlig konvertering — ikke nøjagtig nok til juridisk eller matrikulær brug.
-          </p>
-        )}
-      </div>
+      <CoordinateSystemSelector coordSystem={coordSystem} onChange={setCoordSystem} />
 
-      <div className="manual-input">
-        <label>
-          {manualInputLabels.labelA}:{' '}
-          <input
-            type="number"
-            step="any"
-            placeholder={manualInputLabels.placeholderA}
-            value={inputA}
-            onChange={(e) => setInputA(e.target.value)}
-          />
-        </label>
-        <label>
-          {manualInputLabels.labelB}:{' '}
-          <input
-            type="number"
-            step="any"
-            placeholder={manualInputLabels.placeholderB}
-            value={inputB}
-            onChange={(e) => setInputB(e.target.value)}
-          />
-        </label>
-        <button onClick={addManualPoint}>Tilføj punkt</button>
-      </div>
+      <ManualPointInput
+        coordSystem={coordSystem}
+        inputA={inputA}
+        inputB={inputB}
+        onChangeA={setInputA}
+        onChangeB={setInputB}
+        onAdd={addManualPoint}
+      />
 
-      <div className="skelpunkt-controls">
-        <button onClick={fetchSkelpunkter} disabled={skelLoading}>
-          {skelLoading ? 'Henter skelpunkter…' : 'Hent skelpunkter for kortudsnit'}
-        </button>
-        {(skelPoints.length > 0 || skelLines.length > 0) && !skelLoading && (
-          <span className="skel-count">{skelPoints.length} skelpunkter og {skelLines.length} skellinjer fundet</span>
-        )}
-        {skelLimitReached && !skelLoading && (
-          <p className="warning">
-            ⚠️ Der er flere end 1000 resultater i dette udsnit — nogle skelpunkter/-linjer mangler. Zoom ind for at se alle.
-          </p>
-        )}
-        {skelError && <p className="warning">⚠️ {skelError}</p>}
-      </div>
+      <SkelpunktControls
+        onFetch={fetchSkelpunkter}
+        loading={skelLoading}
+        pointCount={skelPoints.length}
+        lineCount={skelLines.length}
+        limitReached={skelLimitReached}
+        error={skelError}
+      />
 
-      <div className="map-wrapper">
-        <MapContainer center={[55.6761, 12.5683]} zoom={15} style={{ height: '500px', width: '100%' }}>
-          <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Gader">
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; OpenStreetMap contributors'
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Satellit">
-              <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution='Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics'
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Terræn">
-              <TileLayer
-                url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-                attribution='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
-              />
-            </LayersControl.BaseLayer>
-          </LayersControl>
-          <ClickHandler onMapClick={addPoint} onReset={removeLastPoint} />
-          <FlyToPoint target={flyToTarget} />
-          <MapRefSetter onMapReady={setMapInstance} />
-          {skelLines.map((line) => (
-            <Polyline
-              key={line.id}
-              positions={line.positions}
-              pathOptions={{ color: '#ff7f0e', weight: 3 }}
-            >
-              <Tooltip direction="top">
-                <div>
-                  <strong>Skeltype:</strong> {line.skeltype || '–'}<br />
-                  <strong>Status:</strong> {line.status || '–'}
-                </div>
-              </Tooltip>
-            </Polyline>
-          ))}
-          {skelPoints.map((sp) => (
-            <CircleMarker
-              key={sp.id}
-              center={[sp.lat, sp.lng]}
-              radius={5}
-              pathOptions={{ color: '#d62728', fillColor: '#d62728', fillOpacity: 0.8 }}
-            >
-              <Tooltip direction="top" offset={[0, -6]}>
-                <div>
-                  <strong>Punktklasse:</strong> {sp.punktKlasse || '–'}<br />
-                  <strong>Status:</strong> {sp.status || '–'}<br />
-                  <strong>Indlægningstype:</strong> {sp.indlaegningstype || '–'}
-                </div>
-              </Tooltip>
-              <Popup>
-                <button onClick={() => addPoint({ lat: sp.lat, lng: sp.lng })}>
-                  Tilføj som målepunkt
-                </button>
-              </Popup>
-            </CircleMarker>
-          ))}
-          {points.map((p, i) => (
-            <Marker
-              key={i}
-              position={[p.lat, p.lng]}
-              draggable={true}
-              eventHandlers={{
-                dragend: (e) => updatePoint(i, e.target.getLatLng()),
-              }}
-            >
-              <Tooltip permanent direction="top" offset={[0, -10]}>
-                P{i + 1}
-              </Tooltip>
-            </Marker>
-          ))}
-          {points.length > 2 && <Polygon positions={polygonPositions} />}
-        </MapContainer>
-      </div>
+      <MapView
+        points={points}
+        onMapClick={addPoint}
+        onRemoveLastPoint={removeLastPoint}
+        onUpdatePoint={updatePoint}
+        onAddPoint={addPoint}
+        flyToTarget={flyToTarget}
+        onMapReady={setMapInstance}
+        skelPoints={skelPoints}
+        skelLines={skelLines}
+      />
 
       {points.length > 2 && (
         <div className="results">
@@ -474,47 +119,7 @@ function App() {
         </div>
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>{coordSystem === 'wgs84' ? 'Breddegrad' : 'Øst (m)'}</th>
-            <th>{coordSystem === 'wgs84' ? 'Længdegrad' : 'Nord (m)'}</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.map((p, i) => {
-            let a, b
-            if (coordSystem === 'wgs84') {
-              a = p.lat.toFixed(6)
-              b = p.lng.toFixed(6)
-            } else if (coordSystem === 'utm32n') {
-              const c = toUTM32N(p.lat, p.lng)
-              a = c.easting.toFixed(4)
-              b = c.northing.toFixed(4)
-            } else if (coordSystem === 'dktm3') {
-              const c = toDKTM3(p.lat, p.lng)
-              a = c.easting.toFixed(4)
-              b = c.northing.toFixed(4)
-            } else if (coordSystem === 's34s') {
-              const c = toS34SApprox(p.lat, p.lng)
-              a = c.easting.toFixed(4)
-              b = c.northing.toFixed(4)
-            }
-            return (
-              <tr key={i}>
-                <td>P{i + 1}</td>
-                <td>{a}</td>
-                <td>{b}</td>
-                <td>
-                  <button onClick={() => removePoint(i)}>Fjern</button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <PointsTable points={points} coordSystem={coordSystem} onRemove={removePoint} />
     </div>
   )
 }
