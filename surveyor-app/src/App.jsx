@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Polygon, LayersControl, Tooltip, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polygon, Polyline, LayersControl, Tooltip, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import proj4 from 'proj4'
 import 'leaflet/dist/leaflet.css'
@@ -141,8 +141,10 @@ function App() {
   const [flyToTarget, setFlyToTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
   const [skelPoints, setSkelPoints] = useState([])
+  const [skelLines, setSkelLines] = useState([])
   const [skelLoading, setSkelLoading] = useState(false)
   const [skelError, setSkelError] = useState(null)
+  const [skelLimitReached, setSkelLimitReached] = useState(false)
 
   const addPoint = (latlng) => {
     setPoints([...points, { lat: latlng.lat, lng: latlng.lng }])
@@ -189,6 +191,8 @@ function App() {
     setSkelLoading(true)
     setSkelError(null)
     setSkelPoints([]) // Ryd gamle skelpunkter med det samme, så de ikke bliver stående mens vi henter nye
+    setSkelLines([])
+    setSkelLimitReached(false)
     try {
       const bounds = mapInstance.getBounds()
       const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
@@ -199,7 +203,7 @@ function App() {
 
       const now = new Date().toISOString()
 
-      const query = `
+      const skelpunktQuery = `
         query {
           MAT_Skelpunkt(
             first: 1000
@@ -217,25 +221,63 @@ function App() {
               indlaegningstype
               geometri { wkt }
             }
+            pageInfo { hasNextPage }
           }
         }
       `
 
-      const res = await fetch('/api/skelpunkter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      })
-      if (!res.ok) {
-        throw new Error(`Serverfejl (${res.status}) — tjek din API-nøgle i .env`)
-      }
-      const data = await res.json()
-      if (data.errors) {
-        throw new Error(data.errors.map((e) => e.message).join('; '))
+      const matrikelskelQuery = `
+        query {
+          MAT_Matrikelskel(
+            first: 1000
+            virkningstid: "${now}"
+            registreringstid: "${now}"
+            where: {
+              status: { eq: "Gældende" }
+              geometri: { intersects: { wkt: "${wkt}", crs: 25832 } }
+            }
+          ) {
+            nodes {
+              id_lokalId
+              skeltype
+              status
+              geometri { wkt }
+            }
+            pageInfo { hasNextPage }
+          }
+        }
+      `
+
+      const postQuery = async (query) => {
+        const res = await fetch('/api/skelpunkter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          const detail = data?.errors?.map((e) => e.message).join('; ') || `HTTP ${res.status}`
+          throw new Error(detail)
+        }
+        if (data.errors) {
+          throw new Error(data.errors.map((e) => e.message).join('; '))
+        }
+        return data
       }
 
-      const nodes = data.data?.MAT_Skelpunkt?.nodes || []
-      const fetched = nodes.map((node) => {
+      const [skelpunktData, matrikelskelData] = await Promise.all([
+        postQuery(skelpunktQuery),
+        postQuery(matrikelskelQuery),
+      ])
+
+      const pointsExceeded = skelpunktData.data?.MAT_Skelpunkt?.pageInfo?.hasNextPage
+      const linesExceeded = matrikelskelData.data?.MAT_Matrikelskel?.pageInfo?.hasNextPage
+      if (pointsExceeded || linesExceeded) {
+        setSkelLimitReached(true)
+      }
+
+      const pointNodes = skelpunktData.data?.MAT_Skelpunkt?.nodes || []
+      const fetchedPoints = pointNodes.map((node) => {
         // WKT-format for et punkt: "POINT (725123.45 6175678.90)"
         const match = node.geometri.wkt.match(/POINT\s*\(([-\d.]+)\s+([-\d.]+)\)/)
         const easting = parseFloat(match[1])
@@ -250,7 +292,20 @@ function App() {
           indlaegningstype: node.indlaegningstype,
         }
       })
-      setSkelPoints(fetched)
+      setSkelPoints(fetchedPoints)
+
+      const lineNodes = matrikelskelData.data?.MAT_Matrikelskel?.nodes || []
+      const fetchedLines = lineNodes.map((node) => {
+        // WKT-format for en linje: "LINESTRING (e1 n1, e2 n2, ...)"
+        const inner = node.geometri.wkt.match(/LINESTRING\s*\((.+)\)/)[1]
+        const positions = inner.split(',').map((pair) => {
+          const [easting, northing] = pair.trim().split(/\s+/).map(Number)
+          const { lat, lng } = fromUTM32N(easting, northing)
+          return [lat, lng]
+        })
+        return { id: node.id_lokalId, positions, skeltype: node.skeltype, status: node.status }
+      })
+      setSkelLines(fetchedLines)
     } catch (err) {
       setSkelError(err.message)
     } finally {
@@ -323,8 +378,13 @@ function App() {
         <button onClick={fetchSkelpunkter} disabled={skelLoading}>
           {skelLoading ? 'Henter skelpunkter…' : 'Hent skelpunkter for kortudsnit'}
         </button>
-        {skelPoints.length > 0 && !skelLoading && (
-          <span className="skel-count">{skelPoints.length} skelpunkter fundet</span>
+        {(skelPoints.length > 0 || skelLines.length > 0) && !skelLoading && (
+          <span className="skel-count">{skelPoints.length} skelpunkter og {skelLines.length} skellinjer fundet</span>
+        )}
+        {skelLimitReached && !skelLoading && (
+          <p className="warning">
+            ⚠️ Der er flere end 1000 resultater i dette udsnit — nogle skelpunkter/-linjer mangler. Zoom ind for at se alle.
+          </p>
         )}
         {skelError && <p className="warning">⚠️ {skelError}</p>}
       </div>
@@ -354,6 +414,20 @@ function App() {
           <ClickHandler onMapClick={addPoint} onReset={removeLastPoint} />
           <FlyToPoint target={flyToTarget} />
           <MapRefSetter onMapReady={setMapInstance} />
+          {skelLines.map((line) => (
+            <Polyline
+              key={line.id}
+              positions={line.positions}
+              pathOptions={{ color: '#ff7f0e', weight: 3 }}
+            >
+              <Tooltip direction="top">
+                <div>
+                  <strong>Skeltype:</strong> {line.skeltype || '–'}<br />
+                  <strong>Status:</strong> {line.status || '–'}
+                </div>
+              </Tooltip>
+            </Polyline>
+          ))}
           {skelPoints.map((sp) => (
             <CircleMarker
               key={sp.id}
