@@ -14,6 +14,22 @@ L.Icon.Default.mergeOptions({
 // Se skelApi.js for forklaring — tom lokalt (bruger Vites proxy), sat i .env.production ved deployment
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
+// Bygger et farvet nål-ikon til punkter på kortet (samme facon som Leaflets standard-nål,
+// bare i en anden farve) — rød = skelpunkt, blå = manuelt tilføjet
+function pinIcon(color) {
+  return L.icon({
+    iconUrl: `https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-${color}.png`,
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  })
+}
+
+const skelpunktIcon = pinIcon('red')
+const manuelIcon = pinIcon('blue')
+
 export default function MapView({
   points,
   onMapClick,
@@ -74,7 +90,10 @@ export default function MapView({
             radius={5}
             pathOptions={{ color: '#d62728', fillColor: '#d62728', fillOpacity: 0.8 }}
             eventHandlers={{
-              click: () => onAddPoint({ lat: sp.lat, lng: sp.lng, kilde: 'skelpunkt' }),
+              click: (e) => {
+                L.DomEvent.stopPropagation(e)
+                onAddPoint({ lat: sp.lat, lng: sp.lng, kilde: 'skelpunkt' })
+              },
             }}
           >
             <Tooltip direction="top" offset={[0, -6]}>
@@ -92,6 +111,7 @@ export default function MapView({
           <Marker
             key={i}
             position={[p.lat, p.lng]}
+            icon={p.kilde === 'skelpunkt' ? skelpunktIcon : manuelIcon}
             draggable={true}
             eventHandlers={{
               dragend: (e) => onUpdatePoint(i, e.target.getLatLng()),

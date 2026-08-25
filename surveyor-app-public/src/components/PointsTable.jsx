@@ -21,7 +21,18 @@ export default function PointsTable({ points, coordSystem, onRemove }) {
               <td>P{i + 1}</td>
               <td>{a}</td>
               <td>{b}</td>
-              <td>{erSkelpunkt ? 'Skelpunkt' : 'Manuel'}</td>
+              <td>
+                <span
+                  title={erSkelpunkt ? 'Skelpunkt' : 'Manuelt punkt'}
+                  style={{
+                    display: 'inline-block',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: erSkelpunkt ? '#d62728' : '#1f77b4',
+                  }}
+                />
+              </td>
               <td>
                 <button onClick={() => onRemove(i)}>Fjern</button>
               </td>
