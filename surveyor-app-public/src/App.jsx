@@ -6,8 +6,20 @@ import CoordinateSystemSelector from './components/CoordinateSystemSelector'
 import ManualPointInput from './components/ManualPointInput'
 import DataFetchControl from './components/DataFetchControl'
 import PointsTable from './components/PointsTable'
-import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput } from './utils/coordinates'
+import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, toUTM32N } from './utils/coordinates'
 import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
+
+// Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
+const SNAP_RADIUS_METERS = 2
+
+// Faktisk afstand mellem to lat/lng-punkter i meter, via UTM32N (som allerede er i meter)
+function distanceMeters(a, b) {
+  const pa = toUTM32N(a.lat, a.lng)
+  const pb = toUTM32N(b.lat, b.lng)
+  const dx = pa.easting - pb.easting
+  const dy = pa.northing - pb.northing
+  return Math.sqrt(dx * dx + dy * dy)
+}
 
 function App() {
   const [points, setPoints] = useState([])
@@ -52,8 +64,32 @@ function App() {
   }
 
   const updatePoint = (index, latlng) => {
-    // Bevar punktets øvrige felter (bl.a. kilde) — kun koordinaterne ændres ved træk
-    setPoints(points.map((p, i) => (i === index ? { ...p, lat: latlng.lat, lng: latlng.lng } : p)))
+    const dropped = { lat: latlng.lat, lng: latlng.lng }
+
+    // Find det nærmeste skelpunkt (hvis nogen er hentet) og se om det er tæt nok på til at snappe
+    let nearest = null
+    let nearestDist = Infinity
+    for (const sp of skelPoints) {
+      const d = distanceMeters(dropped, sp)
+      if (d < nearestDist) {
+        nearestDist = d
+        nearest = sp
+      }
+    }
+    const snapped = nearest && nearestDist <= SNAP_RADIUS_METERS
+
+    setPoints(
+      points.map((p, i) =>
+        i === index
+          ? {
+              ...p,
+              lat: snapped ? nearest.lat : dropped.lat,
+              lng: snapped ? nearest.lng : dropped.lng,
+              kilde: snapped ? 'skelpunkt' : 'manuel',
+            }
+          : p
+      )
+    )
   }
 
   const removeLastPoint = () => {
