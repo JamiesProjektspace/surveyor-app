@@ -63,6 +63,19 @@ function App() {
     setPoints(points.filter((_, i) => i !== index))
   }
 
+  // Opdaterer et punkts koordinater ud fra manuelt indtastede a/b-værdier i tabellen
+  // (samme princip som addManualPoint, men retter et eksisterende punkt i stedet for at tilføje et nyt)
+  const updatePointCoordinates = (index, a, b) => {
+    const parsedA = parseFloat(a)
+    const parsedB = parseFloat(b)
+    if (isNaN(parsedA) || isNaN(parsedB)) return
+
+    const newCoords = fromManualInput(parsedA, parsedB, coordSystem)
+    if (!newCoords) return
+
+    setPoints(points.map((p, i) => (i === index ? { ...p, lat: newCoords.lat, lng: newCoords.lng } : p)))
+  }
+
   const updatePoint = (index, latlng) => {
     const dropped = { lat: latlng.lat, lng: latlng.lng }
 
@@ -195,7 +208,7 @@ function App() {
         </div>
       )}
 
-      <PointsTable points={points} coordSystem={coordSystem} onRemove={removePoint} />
+      <PointsTable points={points} coordSystem={coordSystem} onRemove={removePoint} onUpdateCoordinates={updatePointCoordinates} />
     </div>
   )
 }
