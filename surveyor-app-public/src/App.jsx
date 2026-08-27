@@ -9,6 +9,10 @@ import PointsTable from './components/PointsTable'
 import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, toUTM32N } from './utils/coordinates'
 import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
 
+// Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
+// for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
+const APP_VERSION = 'v0.15.0'
+
 // Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
 const SNAP_RADIUS_METERS = 2
 
@@ -151,8 +155,9 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Landmålerberegner</h1>
-      <p>Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Højreklik for at fjerne det sidste punkt. Klik på et skelpunkt for at tilføje det til listen.</p>
+      <div style={{ fontSize: '12px', color: '#aaaaaa', textAlign: 'left' }}>{APP_VERSION}</div>
+      <h1 style={{ textAlign: 'center' }}>Skelpunktsfinder</h1>
+      <p>Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Brug knappen "Fortryd sidste punkt" (eller højreklik på computer) for at fjerne det seneste punkt. Klik på et skelpunkt for at tilføje det til listen.</p>
 
       <AddressSearch onLocationFound={setFlyToTarget} />
 
@@ -172,8 +177,6 @@ function App() {
         loadingLabel="Henter skelpunkter…"
         onFetch={handleFetchSkelpunkter}
         loading={skelPointsLoading}
-        count={skelPoints.length}
-        countLabel="skelpunkter"
         limitReached={skelPointsLimitReached}
         error={skelPointsError}
       />
@@ -183,11 +186,15 @@ function App() {
         loadingLabel="Henter skellinjer…"
         onFetch={handleFetchMatrikelskel}
         loading={skelLinesLoading}
-        count={skelLines.length}
-        countLabel="skellinjer"
         limitReached={skelLinesLimitReached}
         error={skelLinesError}
       />
+
+      {points.length > 0 && (
+        <div className="undo-point-wrapper">
+          <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
+        </div>
+      )}
 
       <MapView
         points={points}

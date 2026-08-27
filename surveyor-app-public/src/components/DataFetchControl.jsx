@@ -3,8 +3,6 @@ export default function DataFetchControl({
   loadingLabel,
   onFetch,
   loading,
-  count,
-  countLabel,
   limitReached,
   error,
 }) {
@@ -13,9 +11,6 @@ export default function DataFetchControl({
       <button onClick={onFetch} disabled={loading}>
         {loading ? loadingLabel : label}
       </button>
-      {count > 0 && !loading && (
-        <span className="skel-count">{count} {countLabel} fundet</span>
-      )}
       {limitReached && !loading && (
         <p className="warning">
           ⚠️ Der er flere end 1000 resultater i dette udsnit — nogle mangler. Zoom ind for at se alle.
