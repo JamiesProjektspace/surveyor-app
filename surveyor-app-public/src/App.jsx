@@ -6,12 +6,13 @@ import CoordinateSystemSelector from './components/CoordinateSystemSelector'
 import ManualPointInput from './components/ManualPointInput'
 import DataFetchControl from './components/DataFetchControl'
 import PointsTable from './components/PointsTable'
+import InfoButton from './components/InfoButton'
 import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, toUTM32N } from './utils/coordinates'
 import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.15.0'
+const APP_VERSION = 'v0.18.0'
 
 // Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
 const SNAP_RADIUS_METERS = 2
@@ -156,8 +157,22 @@ function App() {
   return (
     <div className="app">
       <div style={{ fontSize: '12px', color: '#aaaaaa', textAlign: 'left' }}>{APP_VERSION}</div>
-      <h1 style={{ textAlign: 'center' }}>Skelpunktsfinder</h1>
-      <p>Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Brug knappen "Fortryd sidste punkt" (eller højreklik på computer) for at fjerne det seneste punkt. Klik på et skelpunkt for at tilføje det til listen.</p>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <h1 style={{ margin: 0 }}>Skelpunktsfinder</h1>
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '100%',
+              transform: 'translateY(-50%)',
+              marginLeft: '6px',
+            }}
+          >
+            <InfoButton text='Klik på kortet for at placere målepunkter. Træk eksisterende punkter for at justere dem. Brug knappen "Fortryd sidste punkt" (eller højreklik på computer) for at fjerne det seneste punkt. Klik på et skelpunkt for at tilføje det til listen.' />
+          </div>
+        </div>
+      </div>
 
       <AddressSearch onLocationFound={setFlyToTarget} />
 
@@ -179,6 +194,7 @@ function App() {
         loading={skelPointsLoading}
         limitReached={skelPointsLimitReached}
         error={skelPointsError}
+        infoText="Koordinaterne er Dataforsyningens officielt registrerede skelpunkter — brug koordinaterne til at lokalisere punktet i marken, men verificér selv, hvis nøjagtigheden er afgørende."
       />
 
       <DataFetchControl

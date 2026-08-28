@@ -1,16 +1,24 @@
+import { COORDINATE_SYSTEMS } from '../utils/coordinates'
+
 export default function CoordinateSystemSelector({ coordSystem, onChange }) {
+  const current = COORDINATE_SYSTEMS[coordSystem]
+
   return (
     <div className="coord-toggle">
       <label>
         Koordinatsystem:{' '}
         <select value={coordSystem} onChange={(e) => onChange(e.target.value)}>
-          <option value="wgs84">WGS84 (Bredde-/Længdegrad)</option>
-          <option value="utm32n">UTM Zone 32N (ETRS89)</option>
-          <option value="dktm3">DKTM3 (ETRS89)</option>
-          <option value="s34s">System 34 Sjælland (omtrentlig)</option>
+          <option value="wgs84">{COORDINATE_SYSTEMS.wgs84.label}</option>
+          {Object.entries(COORDINATE_SYSTEMS)
+            .filter(([key]) => key !== 'wgs84')
+            .map(([key, sys]) => (
+              <option key={key} value={key}>
+                {sys.label}
+              </option>
+            ))}
         </select>
       </label>
-      {coordSystem === 's34s' && (
+      {current?.approx && (
         <p className="warning">
           ⚠️ Kun omtrentlig konvertering — ikke nøjagtig nok til juridisk eller matrikulær brug.
         </p>
