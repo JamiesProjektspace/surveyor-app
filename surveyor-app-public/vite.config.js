@@ -8,9 +8,9 @@ export default defineConfig(({ mode }) => {
   const DATAFORDELER_APIKEY = env.DATAFORDELER_APIKEY || ''
 
   return {
-    // Appen ligger i en undermappe på One.com (dindomæne.dk/surveyor/),
+    // Appen ligger i en undermappe på One.com (dindomæne.dk/skelpunktsfinder/),
     // så alle filstier skal bygges relativt til den, ikke til domænets rod.
-    base: '/surveyor/',
+    base: '/skelpunktsfinder/',
     plugins: [react()],
     server: {
       proxy: {

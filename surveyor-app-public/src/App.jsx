@@ -12,7 +12,7 @@ import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './u
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.18.1'
+const APP_VERSION = 'v0.18.2'
 
 // Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
 const SNAP_RADIUS_METERS = 2
