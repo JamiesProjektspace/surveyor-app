@@ -25,7 +25,7 @@ function pinIconWithBadge(color, number) {
       <div style="position: relative; width: 25px; height: 41px;">
         <img src="${iconUrl}" style="width: 25px; height: 41px;" />
         <div style="
-          position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+          position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
           background: white; color: #333; border: 1px solid #888; border-radius: 9px;
           min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; font-weight: bold;
           display: flex; align-items: center; justify-content: center; white-space: nowrap;
@@ -101,7 +101,7 @@ export default function MapView({
             eventHandlers={{
               click: (e) => {
                 L.DomEvent.stopPropagation(e)
-                onAddPoint({ lat: sp.lat, lng: sp.lng, kilde: 'skelpunkt' })
+                onAddPoint({ lat: sp.lat, lng: sp.lng, kilde: 'skelpunkt', punktKlasse: sp.punktKlasse })
               },
             }}
           >

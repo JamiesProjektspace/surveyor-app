@@ -40,12 +40,16 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
     setEditingIndex(null)
   }
 
+  // Punktklasse-teksten skal tydeligt vise, at manuelle punkter ikke er skelpunkter —
+  // ikke bare stå tomme, som om data mangler.
+  const punktklasseText = (p) => (p.kilde === 'skelpunkt' ? p.punktKlasse || '–' : 'Manuelt placeret punkt')
+
   // ---------- CSV (kolonne-justeret, til udklipsholder) ----------
   const buildCSV = () => {
-    const headerRow = ['Punktnr', colHeaderA, colHeaderB, 'Kilde']
+    const headerRow = ['Punktnr', colHeaderA, colHeaderB, 'Kilde', 'Punktklasse']
     const dataRows = points.map((p, i) => {
       const { a, b } = toDisplayCoords(p, coordSystem)
-      return [`P${i + 1}`, a, b, p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel']
+      return [`P${i + 1}`, a, b, p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel', punktklasseText(p)]
     })
     const allRows = [headerRow, ...dataRows]
     const colWidths = headerRow.map((_, colIndex) =>
@@ -77,7 +81,7 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
       .map(
         (p, i) => `  <wpt lat="${p.lat}" lon="${p.lng}">
     <name>P${i + 1}</name>
-    <desc>${p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel'}</desc>
+    <desc>${p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel'}${p.punktKlasse ? ` — Punktklasse: ${p.punktKlasse}` : ''}</desc>
   </wpt>`
       )
       .join('\n')
@@ -94,7 +98,11 @@ ${waypoints}
       features: points.map((p, i) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, // NB: GeoJSON er [lng, lat], ikke [lat, lng]
-        properties: { punktnr: `P${i + 1}`, kilde: p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel' },
+        properties: {
+          punktnr: `P${i + 1}`,
+          kilde: p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel',
+          punktklasse: punktklasseText(p),
+        },
       })),
     }
     return JSON.stringify(geojson, null, 2)
