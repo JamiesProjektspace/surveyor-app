@@ -12,7 +12,7 @@ import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './u
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.18.2'
+const APP_VERSION = 'v0.19.0'
 
 // Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
 const SNAP_RADIUS_METERS = 2
@@ -33,6 +33,7 @@ function App() {
   const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
+  const [showPolygon, setShowPolygon] = useState(true)
 
   const [skelPoints, setSkelPoints] = useState([])
   const [skelPointsLoading, setSkelPointsLoading] = useState(false)
@@ -49,8 +50,35 @@ function App() {
   const addPoint = (latlng) => {
     setPoints([
       ...points,
-      { lat: latlng.lat, lng: latlng.lng, kilde: latlng.kilde || 'manuel', punktKlasse: latlng.punktKlasse },
+      {
+        lat: latlng.lat,
+        lng: latlng.lng,
+        kilde: latlng.kilde || 'manuel',
+        punktKlasse: latlng.punktKlasse,
+        skelpunktId: latlng.skelpunktId,
+      },
     ])
+  }
+
+  // Tilføjer alle aktuelt hentede skelpunkter til listen samlet — springer dem over,
+  // der allerede findes i listen (matchet på Dataforsyningens eget id).
+  const addAllSkelpunkter = () => {
+    const alleredeTilfoejet = new Set(points.filter((p) => p.skelpunktId).map((p) => p.skelpunktId))
+    const nyePunkter = skelPoints
+      .filter((sp) => !alleredeTilfoejet.has(sp.id))
+      .map((sp) => ({
+        lat: sp.lat,
+        lng: sp.lng,
+        kilde: 'skelpunkt',
+        punktKlasse: sp.punktKlasse,
+        skelpunktId: sp.id,
+      }))
+    setPoints([...points, ...nyePunkter])
+  }
+
+  // Sletter alle punkter i listen på én gang
+  const clearAllPoints = () => {
+    setPoints([])
   }
 
   const addManualPoint = () => {
@@ -108,6 +136,7 @@ function App() {
               lng: snapped ? nearest.lng : dropped.lng,
               kilde: snapped ? 'skelpunkt' : 'manuel',
               punktKlasse: snapped ? nearest.punktKlasse : undefined,
+              skelpunktId: snapped ? nearest.id : undefined,
             }
           : p
       )
@@ -201,6 +230,12 @@ function App() {
         infoText="Koordinaterne er Dataforsyningens officielt registrerede skelpunkter — brug koordinaterne til at lokalisere punktet i marken, men verificér selv, hvis nøjagtigheden er afgørende."
       />
 
+      {skelPoints.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <button onClick={addAllSkelpunkter}>Tilføj alle skelpunkter til listen</button>
+        </div>
+      )}
+
       <DataFetchControl
         label="Hent skellinjer for kortudsnit"
         loadingLabel="Henter skellinjer…"
@@ -211,8 +246,17 @@ function App() {
       />
 
       {points.length > 0 && (
-        <div className="undo-point-wrapper">
+        <div className="undo-point-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
+          <button onClick={clearAllPoints}>Slet alle punkter</button>
+          <label style={{ fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={showPolygon}
+              onChange={(e) => setShowPolygon(e.target.checked)}
+            />{' '}
+            Vis forbindelseslinjer
+          </label>
         </div>
       )}
 
@@ -226,6 +270,7 @@ function App() {
         onMapReady={setMapInstance}
         skelPoints={skelPoints}
         skelLines={skelLines}
+        showPolygon={showPolygon}
       />
 
       {points.length > 2 && (

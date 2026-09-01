@@ -49,6 +49,7 @@ export default function MapView({
   onMapReady,
   skelPoints,
   skelLines,
+  showPolygon,
 }) {
   const polygonPositions = points.map((p) => [p.lat, p.lng])
 
@@ -101,7 +102,13 @@ export default function MapView({
             eventHandlers={{
               click: (e) => {
                 L.DomEvent.stopPropagation(e)
-                onAddPoint({ lat: sp.lat, lng: sp.lng, kilde: 'skelpunkt', punktKlasse: sp.punktKlasse })
+                onAddPoint({
+                  lat: sp.lat,
+                  lng: sp.lng,
+                  kilde: 'skelpunkt',
+                  punktKlasse: sp.punktKlasse,
+                  skelpunktId: sp.id,
+                })
               },
             }}
           >
@@ -128,7 +135,7 @@ export default function MapView({
           />
         ))}
 
-        {points.length > 2 && <Polygon positions={polygonPositions} />}
+        {points.length > 2 && showPolygon && <Polygon positions={polygonPositions} />}
       </MapContainer>
     </div>
   )
