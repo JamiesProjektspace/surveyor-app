@@ -14,6 +14,31 @@ function downloadFile(filename, content, mimeType) {
   URL.revokeObjectURL(url)
 }
 
+const MAX_ROWS_PER_COLUMN = 20
+const MAX_COLUMNS = 3
+
+// Deler en liste op i op til MAX_COLUMNS kolonner, så jævnt fordelt som muligt.
+// Antal kolonner vokser først til MAX_COLUMNS (ved mere end 20, så 40 punkter),
+// men derefter bliver kolonnetallet ved MAX_COLUMNS uanset hvor mange punkter der
+// tilføjes — de fordeler sig i stedet jævnere ud på de samme 3 kolonner.
+// Går det ikke helt lige op, får kolonnerne længst til venstre det ekstra punkt først.
+function splitIntoColumns(items, maxPerColumn, maxColumns) {
+  if (items.length <= maxPerColumn) return [items]
+
+  const numColumns = Math.min(maxColumns, Math.ceil(items.length / maxPerColumn))
+  const baseSize = Math.floor(items.length / numColumns)
+  const remainder = items.length % numColumns
+
+  const columns = []
+  let idx = 0
+  for (let c = 0; c < numColumns; c++) {
+    const size = baseSize + (c < remainder ? 1 : 0)
+    columns.push(items.slice(idx, idx + size))
+    idx += size
+  }
+  return columns
+}
+
 export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoordinates }) {
   const [editingIndex, setEditingIndex] = useState(null)
   const [editA, setEditA] = useState('')
@@ -154,87 +179,95 @@ ${waypoints}
           )}
         </div>
       )}
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>{colHeaderA}</th>
-            <th>{colHeaderB}</th>
-            <th>Kilde</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.map((p, i) => {
-            const { a, b } = toDisplayCoords(p, coordSystem)
-            const erSkelpunkt = p.kilde === 'skelpunkt'
-            const isEditing = editingIndex === i
-
-            return (
-              <tr key={i}>
-                <td>P{i + 1}</td>
-
-                {isEditing ? (
-                  <>
-                    <td>
-                      <input
-                        type="number"
-                        step="any"
-                        value={editA}
-                        placeholder={labels.placeholderA}
-                        onChange={(e) => setEditA(e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        step="any"
-                        value={editB}
-                        placeholder={labels.placeholderB}
-                        onChange={(e) => setEditB(e.target.value)}
-                      />
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td>{a}</td>
-                    <td>{b}</td>
-                  </>
-                )}
-
-                <td>
-                  <span
-                    title={erSkelpunkt ? 'Skelpunkt' : 'Manuelt punkt'}
-                    style={{
-                      display: 'inline-block',
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: erSkelpunkt ? '#d62728' : '#1f77b4',
-                    }}
-                  />
-                </td>
-
-                <td style={{ textAlign: 'left' }}>
-                  {isEditing ? (
-                    <>
-                      <button onClick={() => saveEdit(i)}>Gem</button>
-                      <button onClick={cancelEdit} style={{ marginLeft: '8px' }}>Annuller</button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => onRemove(i)}>Fjern</button>
-                      {!erSkelpunkt && (
-                        <button onClick={() => startEdit(i, a, b)} style={{ marginLeft: '8px' }}>Rediger</button>
-                      )}
-                    </>
-                  )}
-                </td>
+      <div style={{ display: 'flex', gap: '16px', overflowX: 'auto' }}>
+        {splitIntoColumns(
+          points.map((p, i) => ({ p, i })),
+          MAX_ROWS_PER_COLUMN,
+          MAX_COLUMNS
+        ).map((column, colIndex) => (
+          <table key={colIndex} style={{ flexShrink: 0 }}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>{colHeaderA}</th>
+                <th>{colHeaderB}</th>
+                <th>Kilde</th>
+                <th></th>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {column.map(({ p, i }) => {
+                const { a, b } = toDisplayCoords(p, coordSystem)
+                const erSkelpunkt = p.kilde === 'skelpunkt'
+                const isEditing = editingIndex === i
+
+                return (
+                  <tr key={i}>
+                    <td>P{i + 1}</td>
+
+                    {isEditing ? (
+                      <>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            value={editA}
+                            placeholder={labels.placeholderA}
+                            onChange={(e) => setEditA(e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            value={editB}
+                            placeholder={labels.placeholderB}
+                            onChange={(e) => setEditB(e.target.value)}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{a}</td>
+                        <td>{b}</td>
+                      </>
+                    )}
+
+                    <td>
+                      <span
+                        title={erSkelpunkt ? 'Skelpunkt' : 'Manuelt punkt'}
+                        style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          backgroundColor: erSkelpunkt ? '#d62728' : '#1f77b4',
+                        }}
+                      />
+                    </td>
+
+                    <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
+                      {isEditing ? (
+                        <>
+                          <button onClick={() => saveEdit(i)}>Gem</button>
+                          <button onClick={cancelEdit} style={{ marginLeft: '8px' }}>Annuller</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => onRemove(i)}>Fjern</button>
+                          {!erSkelpunkt && (
+                            <button onClick={() => startEdit(i, a, b)} style={{ marginLeft: '8px' }}>Rediger</button>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        ))}
+      </div>
     </>
   )
 }
