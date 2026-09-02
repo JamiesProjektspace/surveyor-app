@@ -65,11 +65,16 @@ function App() {
     ])
   }
 
-  // Tilføjer alle aktuelt hentede skelpunkter til listen samlet — springer dem over,
-  // der allerede findes i listen (matchet på Dataforsyningens eget id).
+  // Tilføjer skelpunkter, der er synlige i det AKTUELLE kortudsnit, til listen samlet —
+  // springer dem over, der allerede findes i listen (matchet på Dataforsyningens eget id).
+  // Sådan kan man zoome/panorere rundt inden for de hentede skelpunkter og "høste" dem i etaper.
   const addAllSkelpunkter = () => {
+    if (!mapInstance) return
+    const bounds = mapInstance.getBounds()
+    const synligeSkelpunkter = skelPoints.filter((sp) => bounds.contains([sp.lat, sp.lng]))
+
     const alleredeTilfoejet = new Set(points.filter((p) => p.skelpunktId).map((p) => p.skelpunktId))
-    const nyePunkter = skelPoints
+    const nyePunkter = synligeSkelpunkter
       .filter((sp) => !alleredeTilfoejet.has(sp.id))
       .map((sp) => ({
         lat: sp.lat,
@@ -262,7 +267,7 @@ function App() {
 
       {skelPoints.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-          <button onClick={addAllSkelpunkter}>Tilføj alle skelpunkter til listen</button>
+          <button onClick={addAllSkelpunkter}>Tilføj synlige skelpunkter til listen</button>
         </div>
       )}
 
