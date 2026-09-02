@@ -50,12 +50,16 @@ export default function MapView({
   skelPoints,
   skelLines,
   showPolygon,
+  initialCenter,
+  initialZoom,
 }) {
   const polygonPositions = points.map((p) => [p.lat, p.lng])
+  const center = initialCenter || { lat: 55.6761, lng: 12.5683 }
+  const zoom = initialZoom || 15
 
   return (
     <div className="map-wrapper">
-      <MapContainer center={[55.6761, 12.5683]} zoom={15} style={{ height: '500px', width: '100%' }}>
+      <MapContainer center={[center.lat, center.lng]} zoom={zoom} style={{ height: '500px', width: '100%' }}>
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Gader">
             <TileLayer

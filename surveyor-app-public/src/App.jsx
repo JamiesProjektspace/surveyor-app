@@ -9,10 +9,14 @@ import PointsTable from './components/PointsTable'
 import InfoButton from './components/InfoButton'
 import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, toUTM32N } from './utils/coordinates'
 import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
+import { buildShareURL, parseShareURL } from './utils/shareLink'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.19.0'
+const APP_VERSION = 'v0.20.0'
+
+// Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
+const sharedState = parseShareURL()
 
 // Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
 const SNAP_RADIUS_METERS = 2
@@ -27,13 +31,14 @@ function distanceMeters(a, b) {
 }
 
 function App() {
-  const [points, setPoints] = useState([])
-  const [coordSystem, setCoordSystem] = useState('dktm3') // Standard er DKTM3
+  const [points, setPoints] = useState(sharedState?.points || [])
+  const [coordSystem, setCoordSystem] = useState(sharedState?.coordSystem || 'dktm3') // Standard er DKTM3
   const [inputA, setInputA] = useState('')
   const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
   const [showPolygon, setShowPolygon] = useState(true)
+  const [shareCopied, setShareCopied] = useState(false)
 
   const [skelPoints, setSkelPoints] = useState([])
   const [skelPointsLoading, setSkelPointsLoading] = useState(false)
@@ -79,6 +84,21 @@ function App() {
   // Sletter alle punkter i listen på én gang
   const clearAllPoints = () => {
     setPoints([])
+  }
+
+  // Bygger en del-link ud fra nuværende punkter, koordinatsystem og kortudsnit, og kopierer den
+  const shareView = async () => {
+    if (!mapInstance) return
+    const center = mapInstance.getCenter()
+    const zoom = mapInstance.getZoom()
+    const url = buildShareURL({ points, coordSystem, center, zoom })
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch (err) {
+      console.error('Kunne ikke kopiere del-link', err)
+    }
   }
 
   const addManualPoint = () => {
@@ -249,6 +269,8 @@ function App() {
         <div className="undo-point-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
           <button onClick={clearAllPoints}>Slet alle punkter</button>
+          <button onClick={shareView}>Del visning</button>
+          {shareCopied && <span>Link kopieret!</span>}
           <label style={{ fontSize: '14px' }}>
             <input
               type="checkbox"
@@ -271,6 +293,8 @@ function App() {
         skelPoints={skelPoints}
         skelLines={skelLines}
         showPolygon={showPolygon}
+        initialCenter={sharedState?.center}
+        initialZoom={sharedState?.zoom}
       />
 
       {points.length > 2 && (
