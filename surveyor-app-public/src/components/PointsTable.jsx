@@ -179,13 +179,13 @@ ${waypoints}
           )}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '16px', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
         {splitIntoColumns(
           points.map((p, i) => ({ p, i })),
           MAX_ROWS_PER_COLUMN,
           MAX_COLUMNS
         ).map((column, colIndex) => (
-          <table key={colIndex} style={{ flexShrink: 0 }}>
+          <table key={colIndex} style={{ flexShrink: 0, fontSize: '13px', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th>#</th>
@@ -249,14 +249,14 @@ ${waypoints}
                     <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                       {isEditing ? (
                         <>
-                          <button onClick={() => saveEdit(i)}>Gem</button>
-                          <button onClick={cancelEdit} style={{ marginLeft: '8px' }}>Annuller</button>
+                          <button onClick={() => saveEdit(i)} style={{ padding: '2px 6px' }}>Gem</button>
+                          <button onClick={cancelEdit} style={{ marginLeft: '4px', padding: '2px 6px' }}>Annuller</button>
                         </>
                       ) : (
                         <>
-                          <button onClick={() => onRemove(i)}>Fjern</button>
+                          <button onClick={() => onRemove(i)} style={{ padding: '2px 6px' }}>Fjern</button>
                           {!erSkelpunkt && (
-                            <button onClick={() => startEdit(i, a, b)} style={{ marginLeft: '8px' }}>Rediger</button>
+                            <button onClick={() => startEdit(i, a, b)} style={{ marginLeft: '4px', padding: '2px 6px' }}>Rediger</button>
                           )}
                         </>
                       )}
