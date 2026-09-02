@@ -1,22 +1,29 @@
+import LZString from 'lz-string'
+
 // Bygger og læser "del-link"-parametre, så en visning (punkter, koordinatsystem, kortudsnit)
 // kan deles med andre via en almindelig URL — uden nogen server eller database.
 //
-// Format: ?cs=dktm3&view=lat,lng,zoom&pts=lat,lng,kilde,skelpunktId;lat,lng,kilde,skelpunktId;...
-// 'kilde' er 's' (skelpunkt) eller 'm' (manuel). skelpunktId er tomt for manuelle punkter.
+// Selve punkt-listen komprimeres med lz-string, før den lægges i URL'en — det holder
+// linket rimeligt kort, selv med mange punkter, og undgår browserens/serverens grænser
+// for URL-længde (som vi konkret stødte på ved ca. 30+ punkter uden komprimering).
+//
+// Skelpunkter/skellinjer (de røde/orange lag) deles bevidst IKKE i selve linket — de kan
+// altid hentes friskt igen fra Dataforsyningen. Se App.jsx, hvor de auto-hentes, når en
+// delt visning åbnes.
 
 export function buildShareURL({ points, coordSystem, center, zoom }) {
   const params = new URLSearchParams()
   params.set('cs', coordSystem)
   params.set('view', `${center.lat.toFixed(6)},${center.lng.toFixed(6)},${zoom}`)
 
-  const ptsEncoded = points
+  const ptsRaw = points
     .map((p) => {
       const kilde = p.kilde === 'skelpunkt' ? 's' : 'm'
       const skelpunktId = p.kilde === 'skelpunkt' && p.skelpunktId ? p.skelpunktId : ''
       return `${p.lat.toFixed(6)},${p.lng.toFixed(6)},${kilde},${skelpunktId}`
     })
     .join(';')
-  params.set('pts', ptsEncoded)
+  params.set('pts', LZString.compressToEncodedURIComponent(ptsRaw))
 
   const url = new URL(window.location.href)
   url.search = params.toString()
@@ -39,19 +46,21 @@ export function parseShareURL() {
 
   let points = []
   if (params.has('pts')) {
-    points = params
-      .get('pts')
-      .split(';')
-      .filter(Boolean)
-      .map((entry) => {
-        const [lat, lng, k, skelpunktId] = entry.split(',')
-        return {
-          lat: parseFloat(lat),
-          lng: parseFloat(lng),
-          kilde: k === 's' ? 'skelpunkt' : 'manuel',
-          skelpunktId: skelpunktId || undefined,
-        }
-      })
+    const ptsRaw = LZString.decompressFromEncodedURIComponent(params.get('pts'))
+    if (ptsRaw) {
+      points = ptsRaw
+        .split(';')
+        .filter(Boolean)
+        .map((entry) => {
+          const [lat, lng, k, skelpunktId] = entry.split(',')
+          return {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+            kilde: k === 's' ? 'skelpunkt' : 'manuel',
+            skelpunktId: skelpunktId || undefined,
+          }
+        })
+    }
   }
 
   return { coordSystem, center, zoom, points }

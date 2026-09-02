@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import MapView from './components/MapView'
 import AddressSearch from './components/AddressSearch'
@@ -202,6 +202,16 @@ function App() {
       setSkelLinesLoading(false)
     }
   }
+
+  // Ved en delt visning hentes skelpunkter/skellinjer automatisk for udsnittet, én gang,
+  // så snart kortet er klar — i stedet for at gemme selve dataen i linket (se shareLink.js)
+  useEffect(() => {
+    if (mapInstance && sharedState) {
+      handleFetchSkelpunkter()
+      handleFetchMatrikelskel()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapInstance])
 
   const localPoints = toLocalMeters(points)
   const area = calculateArea(localPoints)
