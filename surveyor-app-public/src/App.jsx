@@ -13,7 +13,7 @@ import { buildShareURL, parseShareURL } from './utils/shareLink'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.20.0'
+const APP_VERSION = 'v0.20.3'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()

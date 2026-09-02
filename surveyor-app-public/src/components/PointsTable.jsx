@@ -179,13 +179,13 @@ ${waypoints}
           )}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', overflowX: 'auto' }}>
         {splitIntoColumns(
           points.map((p, i) => ({ p, i })),
           MAX_ROWS_PER_COLUMN,
           MAX_COLUMNS
         ).map((column, colIndex) => (
-          <table key={colIndex} style={{ flexShrink: 0, fontSize: '13px', borderCollapse: 'collapse' }}>
+          <table key={colIndex} style={{ flexShrink: 0, fontSize: '15px', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th>#</th>
