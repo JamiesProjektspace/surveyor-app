@@ -7,28 +7,16 @@ import ManualPointInput from './components/ManualPointInput'
 import DataFetchControl from './components/DataFetchControl'
 import PointsTable from './components/PointsTable'
 import InfoButton from './components/InfoButton'
-import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, toUTM32N } from './utils/coordinates'
-import { fetchSkelpunkter as fetchSkelpunkterData, fetchMatrikelskel } from './utils/skelApi'
+import { toLocalMeters, calculateArea, calculatePerimeter, fromManualInput, distanceMeters, SNAP_RADIUS_METERS } from './utils/coordinates'
 import { buildShareURL, parseShareURL } from './utils/shareLink'
+import { useSkelData } from './hooks/useSkelData'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.20.3'
+const APP_VERSION = 'v0.20.4'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()
-
-// Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
-const SNAP_RADIUS_METERS = 2
-
-// Faktisk afstand mellem to lat/lng-punkter i meter, via UTM32N (som allerede er i meter)
-function distanceMeters(a, b) {
-  const pa = toUTM32N(a.lat, a.lng)
-  const pb = toUTM32N(b.lat, b.lng)
-  const dx = pa.easting - pb.easting
-  const dy = pa.northing - pb.northing
-  return Math.sqrt(dx * dx + dy * dy)
-}
 
 function App() {
   const [points, setPoints] = useState(sharedState?.points || [])
@@ -40,18 +28,19 @@ function App() {
   const [showPolygon, setShowPolygon] = useState(true)
   const [shareCopied, setShareCopied] = useState(false)
 
-  const [skelPoints, setSkelPoints] = useState([])
-  const [skelPointsLoading, setSkelPointsLoading] = useState(false)
-  const [skelPointsError, setSkelPointsError] = useState(null)
-  const [skelPointsLimitReached, setSkelPointsLimitReached] = useState(false)
+  const {
+    skelPoints,
+    skelPointsLoading,
+    skelPointsError,
+    skelPointsLimitReached,
+    fetchSkelpunkter: handleFetchSkelpunkter,
+    skelLines,
+    skelLinesLoading,
+    skelLinesError,
+    skelLinesLimitReached,
+    fetchMatrikelskel: handleFetchMatrikelskel,
+  } = useSkelData(mapInstance)
 
-  const [skelLines, setSkelLines] = useState([])
-  const [skelLinesLoading, setSkelLinesLoading] = useState(false)
-  const [skelLinesError, setSkelLinesError] = useState(null)
-  const [skelLinesLimitReached, setSkelLinesLimitReached] = useState(false)
-
-  // latlng kan enten være et almindeligt Leaflet-klik ({lat, lng}) eller et objekt
-  // med en 'kilde'-markør (fx {lat, lng, kilde: 'skelpunkt'}) — den bevares, hvis den findes.
   const addPoint = (latlng) => {
     setPoints([
       ...points,
@@ -124,8 +113,6 @@ function App() {
     setPoints(points.filter((_, i) => i !== index))
   }
 
-  // Opdaterer et punkts koordinater ud fra manuelt indtastede a/b-værdier i tabellen
-  // (samme princip som addManualPoint, men retter et eksisterende punkt i stedet for at tilføje et nyt)
   const updatePointCoordinates = (index, a, b) => {
     const parsedA = parseFloat(a)
     const parsedB = parseFloat(b)
@@ -140,7 +127,6 @@ function App() {
   const updatePoint = (index, latlng) => {
     const dropped = { lat: latlng.lat, lng: latlng.lng }
 
-    // Find det nærmeste skelpunkt (hvis nogen er hentet) og se om det er tæt nok på til at snappe
     let nearest = null
     let nearestDist = Infinity
     for (const sp of skelPoints) {
@@ -170,42 +156,6 @@ function App() {
 
   const removeLastPoint = () => {
     setPoints((prev) => prev.slice(0, -1))
-  }
-
-  // Henter skelpunkter fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
-  const handleFetchSkelpunkter = async () => {
-    if (!mapInstance) return
-    setSkelPointsLoading(true)
-    setSkelPointsError(null)
-    setSkelPoints([])
-    setSkelPointsLimitReached(false)
-    try {
-      const { points: fetchedPoints, limitReached } = await fetchSkelpunkterData(mapInstance.getBounds())
-      setSkelPoints(fetchedPoints)
-      setSkelPointsLimitReached(limitReached)
-    } catch (err) {
-      setSkelPointsError(err.message)
-    } finally {
-      setSkelPointsLoading(false)
-    }
-  }
-
-  // Henter matrikelskel (skellinjer) fra Dataforsyningen for det kortudsnit, brugeren ser lige nu
-  const handleFetchMatrikelskel = async () => {
-    if (!mapInstance) return
-    setSkelLinesLoading(true)
-    setSkelLinesError(null)
-    setSkelLines([])
-    setSkelLinesLimitReached(false)
-    try {
-      const { lines: fetchedLines, limitReached } = await fetchMatrikelskel(mapInstance.getBounds())
-      setSkelLines(fetchedLines)
-      setSkelLinesLimitReached(limitReached)
-    } catch (err) {
-      setSkelLinesError(err.message)
-    } finally {
-      setSkelLinesLoading(false)
-    }
   }
 
   // Ved en delt visning hentes skelpunkter/skellinjer automatisk for udsnittet, én gang,

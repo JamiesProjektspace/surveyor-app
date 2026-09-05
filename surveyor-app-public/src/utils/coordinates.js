@@ -168,3 +168,14 @@ export function calculatePerimeter(localPoints) {
   }
   return total
 }
+// Hvor tæt (i meter) et trukket punkt skal lande på et skelpunkt, for at det "snapper" til det
+export const SNAP_RADIUS_METERS = 2
+
+// Faktisk afstand mellem to lat/lng-punkter i meter, via UTM32N (som allerede er i meter)
+export function distanceMeters(a, b) {
+  const pa = toUTM32N(a.lat, a.lng)
+  const pb = toUTM32N(b.lat, b.lng)
+  const dx = pa.easting - pb.easting
+  const dy = pa.northing - pb.northing
+  return Math.sqrt(dx * dx + dy * dy)
+}
