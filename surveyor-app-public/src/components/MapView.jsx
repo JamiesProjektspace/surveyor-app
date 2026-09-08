@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, Marker, Polygon, Polyline, LayersControl, Tooltip, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { ClickHandler, FlyToPoint, MapRefSetter } from './MapHelpers'
+import { ClickHandler, FlyToPoint, MapRefSetter, MapResizeHandler } from './MapHelpers'
 
 // Fix for default marker icons not showing in Vite/bundlers
 delete L.Icon.Default.prototype._getIconUrl
@@ -59,7 +59,7 @@ export default function MapView({
 
   return (
     <div className="map-wrapper">
-      <MapContainer center={[center.lat, center.lng]} zoom={zoom} style={{ height: '500px', width: '100%' }}>
+      <MapContainer center={[center.lat, center.lng]} zoom={zoom} style={{ height: '100%', width: '100%' }}>
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Gader">
             <TileLayer
@@ -85,6 +85,7 @@ export default function MapView({
         <ClickHandler onMapClick={onMapClick} onReset={onRemoveLastPoint} />
         <FlyToPoint target={flyToTarget} />
         <MapRefSetter onMapReady={onMapReady} />
+        <MapResizeHandler />
 
         {skelLines.map((line) => (
           <Polyline key={line.id} positions={line.positions} pathOptions={{ color: '#ff7f0e', weight: 3 }}>

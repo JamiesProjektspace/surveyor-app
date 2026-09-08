@@ -1,0 +1,208 @@
+/* ===========================================================
+   Skelpunktsfinder — designsystem
+   Bygget til at fungere lige godt ved skrivebordet og i marken
+   på en telefon, ofte i klart sollys — deraf høj kontrast og
+   store tryk-flader på mobil.
+   =========================================================== */
+
+:root {
+  /* Farvepalette — semantiske farver (rød/blå/orange) er UÆNDREDE
+     fra kortets punkter/linjer og styres stadig direkte i komponenterne. */
+  --color-bg: #fefefe;
+  --color-surface: #f5f6f4;
+  --color-primary: #1a3c34;
+  --color-primary-light: #2c5f52;
+  --color-text: #1a1a1a;
+  --color-text-muted: #5a5a5a;
+  --color-border: #d8dad6;
+
+  --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background: var(--color-bg);
+  overflow-x: hidden; /* Sikkerhedsnet: intet indhold kan skubbe siden bredere end skærmen */
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 20px 40px;
+}
+
+h1 {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* ---------- Knapper (gælder globalt — ingen komponent skal selv style dette) ---------- */
+button {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 9px 16px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Inputfelter og dropdowns ---------- */
+input, select {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: white;
+  color: var(--color-text);
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 1px;
+}
+
+/* ---------- Tabeller: koordinater vises i monospace for lettere aflæsning ---------- */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+td {
+  font-family: var(--font-mono);
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ---------- Advarsler ---------- */
+.warning {
+  background: #fff8e1;
+  border: 1px solid #e6c200;
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+/* ---------- Foldbar "Flere valg"-sektion (adresse, koordinatsystem, manuel indtastning) ---------- */
+details.more-options {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+details.more-options summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+details.more-options > *:not(summary) {
+  margin-top: 12px;
+}
+
+/* ---------- Kortets højde: fast størrelse, som før designsystemet ---------- */
+.map-wrapper {
+  height: 500px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  width: 100%;
+}
+
+/* ===========================================================
+   LAYOUT: to kolonner på computer, ét på mobil
+   .sidebar (kontroller) og .map-area (kort) bytter rækkefølge
+   visuelt via 'order' — koden/HTML'en er uændret, kun CSS afgør
+   hvad der vises først.
+
+   min-width: 0 er vigtig her: grid-/flex-kolonner har som standard
+   en indbygget "modstand" mod at blive smallere end deres indhold
+   (min-width: auto). Uden denne linje kan bredt indhold (fx
+   punktlistens mange kolonner) presse kort-kolonnen til at vokse
+   med sig, i stedet for selv at rulle vandret som tiltænkt.
+   =========================================================== */
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.sidebar {
+  order: 2; /* Mobil: kontroller under kortet */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.map-area {
+  order: 1; /* Mobil: kortet først, synligt med det samme */
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .app-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+    align-items: start;
+  }
+  .sidebar {
+    order: 1; /* Computer: kontroller i venstre panel */
+  }
+  .map-area {
+    order: 2; /* Computer: kort i højre, større område */
+  }
+}
+
+/* ===========================================================
+   MOBIL: større tryk-flader — handsker/stress tilgiver ikke
+   for små knapper, og fingre er mindre præcise end en mus.
+   =========================================================== */
+@media (max-width: 899px) {
+  button {
+    padding: 13px 18px;
+    font-size: 15px;
+    min-height: 46px;
+  }
+  input, select {
+    padding: 10px 12px;
+    font-size: 15px;
+    min-height: 44px;
+  }
+  h1 {
+    font-size: 22px;
+  }
+}

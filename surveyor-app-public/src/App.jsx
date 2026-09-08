@@ -13,7 +13,7 @@ import { useSkelData } from './hooks/useSkelData'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.20.4'
+const APP_VERSION = 'v0.21.0'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()
@@ -192,82 +192,89 @@ function App() {
         </div>
       </div>
 
-      <AddressSearch onLocationFound={setFlyToTarget} />
+      <div className="app-layout">
+        <aside className="sidebar">
+          <details className="more-options" open>
+            <summary>Flere valg</summary>
+            <AddressSearch onLocationFound={setFlyToTarget} />
+            <CoordinateSystemSelector coordSystem={coordSystem} onChange={setCoordSystem} />
+            <ManualPointInput
+              coordSystem={coordSystem}
+              inputA={inputA}
+              inputB={inputB}
+              onChangeA={setInputA}
+              onChangeB={setInputB}
+              onAdd={addManualPoint}
+            />
+          </details>
 
-      <CoordinateSystemSelector coordSystem={coordSystem} onChange={setCoordSystem} />
+          <DataFetchControl
+            label="Hent skelpunkter for kortudsnit"
+            loadingLabel="Henter skelpunkter…"
+            onFetch={handleFetchSkelpunkter}
+            loading={skelPointsLoading}
+            limitReached={skelPointsLimitReached}
+            error={skelPointsError}
+            infoText="Koordinaterne er Dataforsyningens officielt registrerede skelpunkter — brug koordinaterne til at lokalisere punktet i marken, men verificér selv, hvis nøjagtigheden er afgørende."
+          />
 
-      <ManualPointInput
-        coordSystem={coordSystem}
-        inputA={inputA}
-        inputB={inputB}
-        onChangeA={setInputA}
-        onChangeB={setInputB}
-        onAdd={addManualPoint}
-      />
+          {skelPoints.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button onClick={addAllSkelpunkter}>Tilføj synlige skelpunkter til listen</button>
+            </div>
+          )}
 
-      <DataFetchControl
-        label="Hent skelpunkter for kortudsnit"
-        loadingLabel="Henter skelpunkter…"
-        onFetch={handleFetchSkelpunkter}
-        loading={skelPointsLoading}
-        limitReached={skelPointsLimitReached}
-        error={skelPointsError}
-        infoText="Koordinaterne er Dataforsyningens officielt registrerede skelpunkter — brug koordinaterne til at lokalisere punktet i marken, men verificér selv, hvis nøjagtigheden er afgørende."
-      />
+          <DataFetchControl
+            label="Hent skellinjer for kortudsnit"
+            loadingLabel="Henter skellinjer…"
+            onFetch={handleFetchMatrikelskel}
+            loading={skelLinesLoading}
+            limitReached={skelLinesLimitReached}
+            error={skelLinesError}
+          />
 
-      {skelPoints.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-          <button onClick={addAllSkelpunkter}>Tilføj synlige skelpunkter til listen</button>
+          {points.length > 0 && (
+            <div className="undo-point-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
+              <button onClick={clearAllPoints}>Slet alle punkter</button>
+              <button onClick={shareView}>Del visning</button>
+              {shareCopied && <span>Link kopieret!</span>}
+              <label style={{ fontSize: '14px' }}>
+                <input
+                  type="checkbox"
+                  checked={showPolygon}
+                  onChange={(e) => setShowPolygon(e.target.checked)}
+                />{' '}
+                Vis forbindelseslinjer
+              </label>
+            </div>
+          )}
+        </aside>
+
+        <div className="map-area">
+          <MapView
+            points={points}
+            onMapClick={addPoint}
+            onRemoveLastPoint={removeLastPoint}
+            onUpdatePoint={updatePoint}
+            onAddPoint={addPoint}
+            flyToTarget={flyToTarget}
+            onMapReady={setMapInstance}
+            skelPoints={skelPoints}
+            skelLines={skelLines}
+            showPolygon={showPolygon}
+            initialCenter={sharedState?.center}
+            initialZoom={sharedState?.zoom}
+          />
+
+          {points.length > 2 && (
+            <div className="results">
+              <p><strong>Areal:</strong> {area.toFixed(2)} m² ({(area / 10000).toFixed(4)} hektar)</p>
+              <p><strong>Omkreds:</strong> {perimeter.toFixed(2)} m</p>
+            </div>
+          )}
         </div>
-      )}
-
-      <DataFetchControl
-        label="Hent skellinjer for kortudsnit"
-        loadingLabel="Henter skellinjer…"
-        onFetch={handleFetchMatrikelskel}
-        loading={skelLinesLoading}
-        limitReached={skelLinesLimitReached}
-        error={skelLinesError}
-      />
-
-      {points.length > 0 && (
-        <div className="undo-point-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
-          <button onClick={clearAllPoints}>Slet alle punkter</button>
-          <button onClick={shareView}>Del visning</button>
-          {shareCopied && <span>Link kopieret!</span>}
-          <label style={{ fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={showPolygon}
-              onChange={(e) => setShowPolygon(e.target.checked)}
-            />{' '}
-            Vis forbindelseslinjer
-          </label>
-        </div>
-      )}
-
-      <MapView
-        points={points}
-        onMapClick={addPoint}
-        onRemoveLastPoint={removeLastPoint}
-        onUpdatePoint={updatePoint}
-        onAddPoint={addPoint}
-        flyToTarget={flyToTarget}
-        onMapReady={setMapInstance}
-        skelPoints={skelPoints}
-        skelLines={skelLines}
-        showPolygon={showPolygon}
-        initialCenter={sharedState?.center}
-        initialZoom={sharedState?.zoom}
-      />
-
-      {points.length > 2 && (
-        <div className="results">
-          <p><strong>Areal:</strong> {area.toFixed(2)} m² ({(area / 10000).toFixed(4)} hektar)</p>
-          <p><strong>Omkreds:</strong> {perimeter.toFixed(2)} m</p>
-        </div>
-      )}
+      </div>
 
       <PointsTable points={points} coordSystem={coordSystem} onRemove={removePoint} onUpdateCoordinates={updatePointCoordinates} />
     </div>
