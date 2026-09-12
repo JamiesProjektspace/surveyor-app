@@ -110,6 +110,15 @@ td {
   border-radius: 5px;
   padding: 8px 12px;
   font-size: 13px;
+  margin: 0;
+}
+
+/* ---------- Fælles, fast afstand mellem alle knap-grupper (skelpunkter/skellinjer-
+   knapper, fortryd/slet/del-visning-rækken, kopiér/eksport-knappen) — samme klasse
+   alle steder sikrer ensartet mellemrum, uanset om der vises en fejlbesked eller ej
+   (fejlbeskeder er placeret absolut og påvirker derfor ikke denne afstand). ---------- */
+.control-group {
+  margin-bottom: 16px;
 }
 
 /* ---------- Foldbar "Flere valg"-sektion (adresse, koordinatsystem, manuel indtastning) ---------- */

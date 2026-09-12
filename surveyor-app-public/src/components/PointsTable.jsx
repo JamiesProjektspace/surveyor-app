@@ -63,7 +63,7 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
   return (
     <>
       {points.length > 0 && (
-        <div className="copy-points-wrapper">
+        <div className="copy-points-wrapper control-group" style={{ position: 'relative' }}>
           <button onClick={handleExport}>{buttonLabel}</button>
           <select
             value={exportFormat}
@@ -77,9 +77,22 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
           </select>
           {copied && <span className="copied-feedback"> Kopieret!</span>}
           {exportFormat === 'dxf' && coordSystem === 'wgs84' && (
-            <p className="warning">
-              ⚠️ DXF med WGS84 (grader) giver upraktiske koordinater i CAD-software — skift til fx UTM32N eller DKTM3 for et brugbart resultat.
-            </p>
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+                width: 'max-content',
+                maxWidth: '320px',
+                marginTop: '4px',
+              }}
+            >
+              <p className="warning">
+                ⚠️ DXF med WGS84 (grader) giver upraktiske koordinater i CAD-software — skift til fx UTM32N eller DKTM3 for et brugbart resultat.
+              </p>
+            </div>
           )}
         </div>
       )}

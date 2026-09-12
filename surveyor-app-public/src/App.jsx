@@ -13,7 +13,7 @@ import { useSkelData } from './hooks/useSkelData'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.21.0'
+const APP_VERSION = 'v0.22.0'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()
@@ -168,6 +168,26 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapInstance])
 
+  // Ved almindelig opstart (ikke en delt visning) centreres kortet på brugerens egen
+  // placering, hvis browseren har adgang til den. En delt visning har altid forrang —
+  // åbner nogen et link, skal de se DET sted, ikke deres egen placering.
+  useEffect(() => {
+    if (sharedState) return
+    if (!navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFlyToTarget({ lat: position.coords.latitude, lng: position.coords.longitude, zoom: 15 })
+      },
+      (err) => {
+        // Afvist eller utilgængelig — falder automatisk tilbage til standardvisningen (København)
+        console.warn('Kunne ikke hente placering, bruger standardvisning:', err.message)
+      },
+      { timeout: 10000 }
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const localPoints = toLocalMeters(points)
   const area = calculateArea(localPoints)
   const perimeter = points.length > 2 ? calculatePerimeter(localPoints) : 0
@@ -234,7 +254,7 @@ function App() {
           />
 
           {points.length > 0 && (
-            <div className="undo-point-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="undo-point-wrapper control-group" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button onClick={removeLastPoint}>Fortryd sidste punkt</button>
               <button onClick={clearAllPoints}>Slet alle punkter</button>
               <button onClick={shareView}>Del visning</button>

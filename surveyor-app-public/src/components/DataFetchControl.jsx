@@ -10,7 +10,7 @@ export default function DataFetchControl({
   infoText,
 }) {
   return (
-    <div className="skelpunkt-controls" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
+    <div className="control-group" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <button onClick={onFetch} disabled={loading}>
           {loading ? loadingLabel : label}
@@ -29,12 +29,27 @@ export default function DataFetchControl({
           </div>
         )}
       </div>
-      {limitReached && !loading && (
-        <p className="warning">
-          ⚠️ Der er flere end 1000 resultater i dette udsnit — nogle mangler. Zoom ind for at se alle.
-        </p>
+      {((limitReached && !loading) || error) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            width: 'max-content',
+            maxWidth: '280px',
+            marginTop: '4px',
+          }}
+        >
+          {limitReached && !loading && (
+            <p className="warning">
+              ⚠️ Der er flere end 1000 resultater i dette udsnit — nogle mangler. Zoom ind for at se alle.
+            </p>
+          )}
+          {error && <p className="warning">⚠️ {error}</p>}
+        </div>
       )}
-      {error && <p className="warning">⚠️ {error}</p>}
     </div>
   )
 }
