@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toDisplayCoords, manualInputLabelsBySystem } from '../utils/coordinates'
+import { useToast } from '../context/ToastContext'
 import {
   MAX_ROWS_PER_COLUMN,
   MAX_COLUMNS,
@@ -17,6 +18,20 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
   const [editB, setEditB] = useState('')
   const [copied, setCopied] = useState(false)
   const [exportFormat, setExportFormat] = useState('csv')
+  const { showToast } = useToast()
+
+  // Advarslen vises nu i den fælles toast-boks (se ToastStack), i stedet for direkte
+  // under knappen — knappens plads i layoutet ændrer sig derfor ikke, uanset om
+  // advarslen er synlig eller ej.
+  useEffect(() => {
+    const shouldWarn = exportFormat === 'dxf' && coordSystem === 'wgs84'
+    showToast(
+      'dxf-wgs84-warning',
+      shouldWarn
+        ? 'DXF med WGS84 (grader) giver upraktiske koordinater i CAD-software — skift til fx UTM32N eller DKTM3 for et brugbart resultat.'
+        : null
+    )
+  }, [exportFormat, coordSystem, showToast])
 
   const labels = manualInputLabelsBySystem[coordSystem]
   const colHeaderA = coordSystem === 'wgs84' ? 'Breddegrad' : 'Øst (m)'
@@ -63,7 +78,7 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
   return (
     <>
       {points.length > 0 && (
-        <div className="copy-points-wrapper control-group" style={{ position: 'relative' }}>
+        <div className="copy-points-wrapper control-group">
           <button onClick={handleExport}>{buttonLabel}</button>
           <select
             value={exportFormat}
@@ -76,24 +91,6 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
             <option value="geojson">GeoJSON</option>
           </select>
           {copied && <span className="copied-feedback"> Kopieret!</span>}
-          {exportFormat === 'dxf' && coordSystem === 'wgs84' && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10,
-                width: 'max-content',
-                maxWidth: '320px',
-                marginTop: '4px',
-              }}
-            >
-              <p className="warning">
-                ⚠️ DXF med WGS84 (grader) giver upraktiske koordinater i CAD-software — skift til fx UTM32N eller DKTM3 for et brugbart resultat.
-              </p>
-            </div>
-          )}
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', overflowX: 'auto' }}>

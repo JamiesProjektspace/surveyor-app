@@ -13,7 +13,7 @@ import { useSkelData } from './hooks/useSkelData'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.22.0'
+const APP_VERSION = 'v0.23.0'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()
@@ -227,6 +227,7 @@ function App() {
           </details>
 
           <DataFetchControl
+            id="skelpunkter"
             label="Hent skelpunkter for kortudsnit"
             loadingLabel="Henter skelpunkter…"
             onFetch={handleFetchSkelpunkter}
@@ -237,12 +238,13 @@ function App() {
           />
 
           {skelPoints.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="control-group" style={{ display: 'flex', justifyContent: 'center' }}>
               <button onClick={addAllSkelpunkter}>Tilføj synlige skelpunkter til listen</button>
             </div>
           )}
 
           <DataFetchControl
+            id="skellinjer"
             label="Hent skellinjer for kortudsnit"
             loadingLabel="Henter skellinjer…"
             onFetch={handleFetchMatrikelskel}
