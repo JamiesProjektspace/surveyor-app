@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './App.css'
 import MapView from './components/MapView'
 import AddressSearch from './components/AddressSearch'
@@ -21,8 +21,6 @@ const sharedState = parseShareURL()
 function App() {
   const [points, setPoints] = useState(sharedState?.points || [])
   const [coordSystem, setCoordSystem] = useState(sharedState?.coordSystem || 'dktm3') // Standard er DKTM3
-  const [inputA, setInputA] = useState('')
-  const [inputB, setInputB] = useState('')
   const [flyToTarget, setFlyToTarget] = useState(null)
   const [mapInstance, setMapInstance] = useState(null)
   const [showPolygon, setShowPolygon] = useState(true)
@@ -95,18 +93,19 @@ function App() {
     }
   }
 
-  const addManualPoint = () => {
+  // Returnerer true/false, så ManualPointInput ved, om felterne skal tømmes
+  // (kun ved succes — ved ugyldigt input skal brugerens indtastning bevares).
+  const addManualPoint = (inputA, inputB) => {
     const a = parseFloat(inputA)
     const b = parseFloat(inputB)
-    if (isNaN(a) || isNaN(b)) return
+    if (isNaN(a) || isNaN(b)) return false
 
     const newPoint = fromManualInput(a, b, coordSystem)
-    if (!newPoint) return
+    if (!newPoint) return false
 
     setPoints([...points, { ...newPoint, kilde: 'manuel' }])
     setFlyToTarget(newPoint)
-    setInputA('')
-    setInputB('')
+    return true
   }
 
   const removePoint = (index) => {
@@ -188,9 +187,15 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const localPoints = toLocalMeters(points)
-  const area = calculateArea(localPoints)
-  const perimeter = points.length > 2 ? calculatePerimeter(localPoints) : 0
+  // Genberegnes kun når punktlisten faktisk ændrer sig, ikke ved hvert render
+  // (fx mens brugeren skriver i et helt andet felt).
+  const { area, perimeter } = useMemo(() => {
+    const localPoints = toLocalMeters(points)
+    return {
+      area: calculateArea(localPoints),
+      perimeter: points.length > 2 ? calculatePerimeter(localPoints) : 0,
+    }
+  }, [points])
 
   return (
     <div className="app">
@@ -218,14 +223,7 @@ function App() {
             <summary>Flere valg</summary>
             <AddressSearch onLocationFound={setFlyToTarget} />
             <CoordinateSystemSelector coordSystem={coordSystem} onChange={setCoordSystem} />
-            <ManualPointInput
-              coordSystem={coordSystem}
-              inputA={inputA}
-              inputB={inputB}
-              onChangeA={setInputA}
-              onChangeB={setInputB}
-              onAdd={addManualPoint}
-            />
+            <ManualPointInput coordSystem={coordSystem} onAdd={addManualPoint} />
           </details>
 
           <DataFetchControl

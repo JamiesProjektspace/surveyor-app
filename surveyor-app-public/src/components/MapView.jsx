@@ -1,25 +1,46 @@
+import { useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon, Polyline, LayersControl, Tooltip, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { ClickHandler, FlyToPoint, MapRefSetter, MapResizeHandler } from './MapHelpers'
 
+// Lokalt bundlede ikoner i stedet for eksterne CDN'er (unpkg/jsdelivr) — appen viser
+// stadig markører korrekt selv hvis de CDN'er er nede eller blokerede, og der spares
+// eksterne netværkskald pr. markør.
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import redMarkerIcon from '../assets/markers/marker-icon-2x-red.png'
+import blueMarkerIcon from '../assets/markers/marker-icon-2x-blue.png'
+
 // Fix for default marker icons not showing in Vite/bundlers
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 })
 
 // Se skelApi.js for forklaring — tom lokalt (bruger Vites proxy), sat i .env.production ved deployment
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
+const BADGE_ICON_URLS = { red: redMarkerIcon, blue: blueMarkerIcon }
+
+// Cache af divIcon-instanser pr. (farve, nummer)-kombination, så vi ikke opretter et nyt
+// L.divIcon (inkl. et helt HTML-fragment) for hvert punkt ved hvert render — kun når et
+// punkts farve eller nummer rent faktisk ændrer sig, bygges et nyt ikon.
+const badgeIconCache = new Map()
+
 // Bygger et farvet nål-ikon med et lille, nummereret badge øverst — rød = skelpunkt,
 // blå = manuelt tilføjet. Bruger divIcon (rå HTML) i stedet for icon, fordi vi skal
 // kombinere nål-billedet med et ekstra, placeret element (badgen) oveni.
 function pinIconWithBadge(color, number) {
-  const iconUrl = `https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-${color}.png`
-  return L.divIcon({
+  const cacheKey = `${color}-${number}`
+  const cached = badgeIconCache.get(cacheKey)
+  if (cached) return cached
+
+  const iconUrl = BADGE_ICON_URLS[color] || BADGE_ICON_URLS.blue
+  const icon = L.divIcon({
     className: 'pin-with-badge',
     html: `
       <div style="position: relative; width: 25px; height: 41px;">
@@ -37,6 +58,8 @@ function pinIconWithBadge(color, number) {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   })
+  badgeIconCache.set(cacheKey, icon)
+  return icon
 }
 
 export default function MapView({
@@ -53,7 +76,7 @@ export default function MapView({
   initialCenter,
   initialZoom,
 }) {
-  const polygonPositions = points.map((p) => [p.lat, p.lng])
+  const polygonPositions = useMemo(() => points.map((p) => [p.lat, p.lng]), [points])
   const center = initialCenter || { lat: 55.6761, lng: 12.5683 }
   const zoom = initialZoom || 15
 

@@ -73,15 +73,28 @@ export function buildDXF(points, coordSystem) {
   return lines.join('\n')
 }
 
+// Escaper de fem XML-specialtegn, så felter fra eksterne data (fx punktKlasse fra
+// Dataforsyningen) ikke kan producere ugyldig eller uventet XML i GPX-filen.
+function escapeXML(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 // ---------- GPX (altid WGS84 — det er et krav i selve GPX-standarden) ----------
 export function buildGPX(points) {
   const waypoints = points
-    .map(
-      (p, i) => `  <wpt lat="${p.lat}" lon="${p.lng}">
-    <name>P${i + 1}</name>
-    <desc>${p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel'}${p.punktKlasse ? ` — Punktklasse: ${p.punktKlasse}` : ''}</desc>
+    .map((p, i) => {
+      const kilde = p.kilde === 'skelpunkt' ? 'Skelpunkt' : 'Manuel'
+      const desc = p.punktKlasse ? `${kilde} — Punktklasse: ${p.punktKlasse}` : kilde
+      return `  <wpt lat="${p.lat}" lon="${p.lng}">
+    <name>${escapeXML(`P${i + 1}`)}</name>
+    <desc>${escapeXML(desc)}</desc>
   </wpt>`
-    )
+    })
     .join('\n')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Landmålerberegner" xmlns="http://www.topografix.com/GPX/1/1">

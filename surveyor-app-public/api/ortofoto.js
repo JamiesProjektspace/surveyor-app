@@ -13,6 +13,13 @@ export default async function handler(req, res) {
 
   const { z, x, y } = req.query
 
+  // z/x/y skal være heltal — afviser tomme/manglende eller åbenlyst ugyldige værdier,
+  // før de bruges i et upstream-kald (og før det tæller mod API-kvoten).
+  if (![z, x, y].every((v) => /^\d+$/.test(v || ''))) {
+    res.status(400).json({ error: 'z, x og y skal være positive heltal' })
+    return
+  }
+
   const params = new URLSearchParams({
     SERVICE: 'WMTS',
     REQUEST: 'GetTile',
@@ -33,6 +40,12 @@ export default async function handler(req, res) {
     )
     const buffer = await upstreamRes.arrayBuffer()
     res.setHeader('Content-Type', upstreamRes.headers.get('content-type') || 'image/jpeg')
+    // Ortofoto-fliser ændrer sig stort set aldrig — lad browser og Vercels CDN cache dem
+    // langvarigt, så vi ikke laver et nyt serverless-kald (og upstream-kald) for hver
+    // pan/zoom af et fliseudsnit, som allerede er hentet før.
+    if (upstreamRes.ok) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=86400')
+    }
     res.status(upstreamRes.status).send(Buffer.from(buffer))
   } catch (err) {
     res.status(502).json({ error: 'Kunne ikke hente ortofoto-flise', detail: err.message })

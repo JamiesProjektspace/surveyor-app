@@ -1,4 +1,4 @@
-import { toUTM32N, fromUTM32N } from './coordinates'
+import { fromUTM32N } from './coordinates'
 
 // I lokal udvikling er denne tom, og kaldene går til '/api/...', som Vites egen
 // proxy (vite.config.js) håndterer. Ved deployment til fx One.com sættes
@@ -6,15 +6,29 @@ import { toUTM32N, fromUTM32N } from './coordinates'
 // der overtager proxyens rolle i den offentlige version.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-async function postQuery(query) {
+// Sender kun en operation + bounding box (WGS84) til vores eget API-endpoint.
+// Selve GraphQL-forespørgslen bygges på serveren (api/skelpunkter.js) — klienten
+// sender ikke længere fri GraphQL-tekst, så endpointet ikke kan misbruges som
+// en åben proxy for hele Dataforsyningens API.
+async function postQuery(operation, bounds) {
+  const body = {
+    operation,
+    bounds: {
+      south: bounds.getSouth(),
+      west: bounds.getWest(),
+      north: bounds.getNorth(),
+      east: bounds.getEast(),
+    },
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/skelpunkter`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    const detail = data?.errors?.map((e) => e.message).join('; ') || `HTTP ${res.status}`
+    const detail = data?.errors?.map((e) => e.message).join('; ') || data?.error || `HTTP ${res.status}`
     throw new Error(detail)
   }
   if (data.errors) {
@@ -23,43 +37,10 @@ async function postQuery(query) {
   return data
 }
 
-// Byg en lukket bounding box-polygon (WKT) i UTM32N ud fra Leaflets kortgrænser
-function boundsToWKT(bounds) {
-  const sw = toUTM32N(bounds.getSouth(), bounds.getWest())
-  const ne = toUTM32N(bounds.getNorth(), bounds.getEast())
-  return `POLYGON((${sw.easting} ${sw.northing}, ${ne.easting} ${sw.northing}, ${ne.easting} ${ne.northing}, ${sw.easting} ${ne.northing}, ${sw.easting} ${sw.northing}))`
-}
-
 // Henter skelpunkter fra Dataforsyningen (MAT/v2 GraphQL) for et givet kortudsnit.
 // Returnerer { points, limitReached }.
 export async function fetchSkelpunkter(bounds) {
-  const wkt = boundsToWKT(bounds)
-  const now = new Date().toISOString()
-
-  const query = `
-    query {
-      MAT_Skelpunkt(
-        first: 1000
-        virkningstid: "${now}"
-        registreringstid: "${now}"
-        where: {
-          status: { eq: "Gældende" }
-          geometri: { within: { wkt: "${wkt}", crs: 25832 } }
-        }
-      ) {
-        nodes {
-          id_lokalId
-          punktKlasse
-          status
-          indlaegningstype
-          geometri { wkt }
-        }
-        pageInfo { hasNextPage }
-      }
-    }
-  `
-
-  const data = await postQuery(query)
+  const data = await postQuery('skelpunkter', bounds)
   const limitReached = Boolean(data.data?.MAT_Skelpunkt?.pageInfo?.hasNextPage)
 
   const nodes = data.data?.MAT_Skelpunkt?.nodes || []
@@ -85,32 +66,7 @@ export async function fetchSkelpunkter(bounds) {
 // Henter matrikelskel (skellinjer) fra Dataforsyningen (MAT/v2 GraphQL) for et givet kortudsnit.
 // Returnerer { lines, limitReached }.
 export async function fetchMatrikelskel(bounds) {
-  const wkt = boundsToWKT(bounds)
-  const now = new Date().toISOString()
-
-  const query = `
-    query {
-      MAT_Matrikelskel(
-        first: 1000
-        virkningstid: "${now}"
-        registreringstid: "${now}"
-        where: {
-          status: { eq: "Gældende" }
-          geometri: { intersects: { wkt: "${wkt}", crs: 25832 } }
-        }
-      ) {
-        nodes {
-          id_lokalId
-          skeltype
-          status
-          geometri { wkt }
-        }
-        pageInfo { hasNextPage }
-      }
-    }
-  `
-
-  const data = await postQuery(query)
+  const data = await postQuery('matrikelskel', bounds)
   const limitReached = Boolean(data.data?.MAT_Matrikelskel?.pageInfo?.hasNextPage)
 
   const nodes = data.data?.MAT_Matrikelskel?.nodes || []

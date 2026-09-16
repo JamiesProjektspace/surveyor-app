@@ -110,14 +110,30 @@ export function toDisplayCoords(point, coordSystem) {
   return { a: easting.toFixed(4), b: northing.toFixed(4) }
 }
 
+// Grov sanity-bbox for Danmark (inkl. Bornholm og lidt margin). Bruges til at fange
+// tastefejl (fx ombyttet øst/nord) i de projicerede systemer, hvor der ellers ikke er
+// noget naturligt range-check som med bredde-/længdegrad.
+const DK_WGS84_BOUNDS = { south: 53, north: 58.5, west: 3, east: 16 }
+
+function isWithinDenmark(lat, lng) {
+  return (
+    lat >= DK_WGS84_BOUNDS.south &&
+    lat <= DK_WGS84_BOUNDS.north &&
+    lng >= DK_WGS84_BOUNDS.west &&
+    lng <= DK_WGS84_BOUNDS.east
+  )
+}
+
 export function fromManualInput(a, b, coordSystem) {
   if (coordSystem === 'wgs84') {
     if (a < -90 || a > 90 || b < -180 || b > 180) return null
+    if (!isWithinDenmark(a, b)) return null
     return { lat: a, lng: b }
   }
   const sys = COORDINATE_SYSTEMS[coordSystem]
   if (!sys) return null
   const [lng, lat] = proj4(sys.epsg, 'EPSG:4326', [a, b])
+  if (!isWithinDenmark(lat, lng)) return null
   return { lat, lng }
 }
 

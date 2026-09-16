@@ -16,16 +16,27 @@ export default function AddressSearch({ onLocationFound }) {
       return
     }
 
+    // "ignore" beskytter mod race conditions: hvis brugeren skriver videre og et nyt
+    // debounce-kald starter, før et tidligere (langsommere) kald er landet, må det
+    // gamle kald ikke overskrive resultaterne fra det nye, når det til sidst svarer.
+    let ignore = false
+
     debounceRef.current = setTimeout(async () => {
       try {
         const results = await searchAddresses(query)
-        setSuggestions(results)
+        if (!ignore) {
+          setSuggestions(results)
+          setError(null)
+        }
       } catch (err) {
-        setError(err.message)
+        if (!ignore) setError(err.message)
       }
     }, 300)
 
-    return () => clearTimeout(debounceRef.current)
+    return () => {
+      ignore = true
+      clearTimeout(debounceRef.current)
+    }
   }, [query])
 
   const handleSelect = async (suggestion) => {
