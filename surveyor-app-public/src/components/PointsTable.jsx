@@ -12,6 +12,23 @@ import {
   buildGeoJSON,
 } from '../utils/pointExport'
 
+// Samme grænse som .sidebar/.map-area-layoutet i App.css (@media max-width: 899px) —
+// under den bredde vises punkttabellen altid i én kolonne, uanset MAX_COLUMNS.
+const MOBILE_QUERY = '(max-width: 899px)'
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
+  )
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY)
+    const handleChange = (e) => setIsMobile(e.matches)
+    mql.addEventListener('change', handleChange)
+    return () => mql.removeEventListener('change', handleChange)
+  }, [])
+  return isMobile
+}
+
 export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoordinates }) {
   const [editingIndex, setEditingIndex] = useState(null)
   const [editA, setEditA] = useState('')
@@ -19,6 +36,7 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
   const [copied, setCopied] = useState(false)
   const [exportFormat, setExportFormat] = useState('csv')
   const { showToast } = useToast()
+  const isMobile = useIsMobile()
 
   // Advarslen vises nu i den fælles toast-boks (se ToastStack), i stedet for direkte
   // under knappen — knappens plads i layoutet ændrer sig derfor ikke, uanset om
@@ -93,20 +111,20 @@ export default function PointsTable({ points, coordSystem, onRemove, onUpdateCoo
           {copied && <span className="copied-feedback"> Kopieret!</span>}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', overflowX: 'auto' }}>
+      <div className="points-table-scroll">
         {splitIntoColumns(
           points.map((p, i) => ({ p, i })),
           MAX_ROWS_PER_COLUMN,
-          MAX_COLUMNS
+          isMobile ? 1 : MAX_COLUMNS
         ).map((column, colIndex) => (
           <table key={colIndex} style={{ flexShrink: 0, fontSize: '15px', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th>#</th>
-                <th>{colHeaderA}</th>
-                <th>{colHeaderB}</th>
-                <th>Kilde</th>
-                <th></th>
+                <th className="sticky-col-header">#</th>
+                <th className="sticky-col-header">{colHeaderA}</th>
+                <th className="sticky-col-header">{colHeaderB}</th>
+                <th className="sticky-col-header">Kilde</th>
+                <th className="sticky-col-header"></th>
               </tr>
             </thead>
             <tbody>

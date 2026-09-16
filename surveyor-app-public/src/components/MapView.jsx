@@ -75,6 +75,9 @@ export default function MapView({
   showPolygon,
   initialCenter,
   initialZoom,
+  area,
+  perimeter,
+  showResults,
 }) {
   const polygonPositions = useMemo(() => points.map((p) => [p.lat, p.lng]), [points])
   const center = initialCenter || { lat: 55.6761, lng: 12.5683 }
@@ -165,6 +168,13 @@ export default function MapView({
 
         {points.length > 2 && showPolygon && <Polygon positions={polygonPositions} />}
       </MapContainer>
+
+      {showResults && (
+        <div className="map-results-overlay">
+          <p><strong>Areal:</strong> {area.toFixed(2)} m² ({(area / 10000).toFixed(4)} hektar)</p>
+          <p><strong>Omkreds:</strong> {perimeter.toFixed(2)} m</p>
+        </div>
+      )}
     </div>
   )
 }

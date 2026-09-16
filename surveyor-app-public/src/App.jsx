@@ -13,7 +13,7 @@ import { useSkelData } from './hooks/useSkelData'
 
 // Husk at opdatere denne, når der laves ændringer — se læremateriale/deployment-dokumenterne
 // for retningslinjer: MAJOR.MINOR.PATCH (ny funktion = MINOR, rettelse/justering = PATCH)
-const APP_VERSION = 'v0.23.0'
+const APP_VERSION = 'v0.22.0'
 
 // Læses én gang, når siden indlæses — ikke inde i komponenten, da URL'en ikke ændrer sig undervejs
 const sharedState = parseShareURL()
@@ -285,14 +285,10 @@ function App() {
             showPolygon={showPolygon}
             initialCenter={sharedState?.center}
             initialZoom={sharedState?.zoom}
+            area={area}
+            perimeter={perimeter}
+            showResults={points.length > 2}
           />
-
-          {points.length > 2 && (
-            <div className="results">
-              <p><strong>Areal:</strong> {area.toFixed(2)} m² ({(area / 10000).toFixed(4)} hektar)</p>
-              <p><strong>Omkreds:</strong> {perimeter.toFixed(2)} m</p>
-            </div>
-          )}
         </div>
       </div>
 

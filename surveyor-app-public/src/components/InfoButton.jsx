@@ -20,18 +20,7 @@ export default function InfoButton({ text }) {
         ref={buttonRef}
         onClick={toggleOpen}
         aria-label="Mere information"
-        style={{
-          width: '18px',
-          height: '18px',
-          borderRadius: '50%',
-          border: '1px solid #888',
-          background: 'white',
-          color: '#555',
-          fontSize: '12px',
-          lineHeight: '1',
-          cursor: 'pointer',
-          padding: 0,
-        }}
+        className="info-button"
       >
         i
       </button>

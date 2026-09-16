@@ -67,6 +67,28 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* ---------- Info-knappen ("i") ---------- */
+/* Egen klasse, adskilt fra de almindelige knapper, så den ikke rammes af
+   mobil-reglens min-height/padding herunder (som ellers gør den oval i
+   stedet for rund, fordi bredden er fast 18px men højden bliver tvunget op). */
+.info-button {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #888;
+  background: white;
+  color: #555;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info-button:hover:not(:disabled) {
+  background: white;
+}
+
 /* ---------- Inputfelter og dropdowns ---------- */
 input, select {
   font-family: var(--font-ui);
@@ -95,6 +117,31 @@ th {
   text-align: left;
   padding: 6px 10px;
   border-bottom: 2px solid var(--color-border);
+}
+
+/* Holder kolonneoverskrifterne synlige, mens man scroller ned gennem en lang
+   punktliste — nødvendigt eget baggrundsfarve, ellers ses rækkerne igennem
+   den fastholdte header, mens de scroller forbi under den. */
+.sticky-col-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg);
+}
+
+/* Punkttabellens scroll-container: en eksplicit, afgrænset scroll-boks (i stedet for
+   kun overflow-x) er bevidst valgt her — sætter man kun overflow-x uden overflow-y,
+   tvinger browseren overflow-y til også at blive "auto", hvilket gør DENNE boks
+   (i stedet for hele siden) til referencepunktet for position:sticky, og med en
+   uendelig/auto højde ville toppen aldrig reelt "klæbe" fast. Med en fast
+   max-height + overflow: auto på begge akser her får vi et entydigt, scrollbart
+   område, som sticky-headeren garanteret klæber fast i, mens man scroller punkterne. */
+.points-table-scroll {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  max-height: 60vh;
+  overflow: auto;
 }
 
 td {
@@ -215,11 +262,32 @@ details.more-options > *:not(summary) {
 
 /* ---------- Kortets højde: fast størrelse, som før designsystemet ---------- */
 .map-wrapper {
+  position: relative;
   height: 500px;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--color-border);
   width: 100%;
+}
+
+/* Areal/omkreds vises som et overlay ovenpå kortet i stedet for i normal
+   dokumentflow under det — ellers ville boksen skubbe punkttabellen længere
+   ned på siden, hver gang den dukker op eller forsvinder (ved 3 punkter). */
+.map-results-overlay {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: white;
+  border-radius: 6px;
+  padding: 6px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  max-width: calc(100% - 20px);
+}
+
+.map-results-overlay p {
+  margin: 2px 0;
 }
 
 /* ===========================================================
